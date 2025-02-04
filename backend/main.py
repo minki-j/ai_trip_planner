@@ -8,20 +8,9 @@ from bson import ObjectId
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional
 
-from app.workflows.correction import g as correction_graph
-from app.workflows.vocabulary import g as vocabulary_graph
-from app.workflows.breakdown import g as breakdown_graph
-
 from app.db.mongodb import ping_mongodb, main_db
 from app.utils.compile_graph import compile_graph_with_async_checkpointer
-from app.models import (
-    CorrectionItem,
-    Correction,
-    Vocabulary,
-    Breakdown,
-    General,
-    ResponseType,
-)
+# from app.models import
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -89,14 +78,15 @@ async def get_current_user_http(request: Request) -> Optional[dict]:
     return None
 
 
-app = FastAPI(title="English Tutor API", lifespan=lifespan)
+app = FastAPI(title="Tour Assistant Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://backend-production-c134.up.railway.app",
-        "https://englishtutor-production.up.railway.app",
+        "ws://localhost:3000",
+        # "https://backend-production-c134.up.railway.app",
+        # "https://englishtutor-production.up.railway.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -111,23 +101,25 @@ async def health_check():
     return {"status": "healthy", "message": "Service is running"}
 
 
-@app.websocket("/ws/correction")
-async def correction_ws(websocket: WebSocket):
+@app.websocket("/ws/chat")
+async def chat_ws(websocket: WebSocket):
     """
-    correct the provided input and provide explanations for corrections.
+    Process chat messages.
     """
     try:
         await websocket.accept()
         user = await get_current_user_websocket(websocket)
+        print("\n\nuser: ", user)
         if not user:
             await websocket.send_json(
                 {"error": "No user ID provided or user not found"}
             )
+            await websocket.close()
             return
 
         data = await websocket.receive_json()
+        print("\n\ndata: ", data)
 
-        type = ResponseType.CORRECTION.value
         input = data.get("input")
 
         if not input:
@@ -135,7 +127,7 @@ async def correction_ws(websocket: WebSocket):
             await websocket.send_json({"error": error_msg})
             return
 
-        graph = correction_graph
+        graph = main_graph
         result = Correction(userId=user["id"], input=input)
         workflow = await compile_graph_with_async_checkpointer(graph, type)
 
@@ -147,8 +139,6 @@ async def correction_ws(websocket: WebSocket):
                 "input": input,
                 "thread_id": result_id_str,
                 "aboutMe": user.get("aboutMe", ""),
-                "englishLevel": user.get("englishLevel", ""),
-                "motherTongue": user.get("motherTongue", ""),
             },
             stream_mode=["custom"],
             config={"configurable": {"thread_id": result_id_str}},
@@ -180,75 +170,6 @@ async def correction_ws(websocket: WebSocket):
         await websocket.send_json({"error": str(e)})
     finally:
         await websocket.close()
-
-
-@app.websocket("/ws/general")
-async def general_ws(websocket: WebSocket):
-    """
-    Process general questions.
-    """
-    try:
-        await websocket.accept()
-        user = await get_current_user_websocket(websocket)
-        if not user:
-            await websocket.send_json(
-                {"error": "No user ID provided or user not found"}
-            )
-            return
-
-        data = await websocket.receive_json()
-
-        type = ResponseType.GENERAL.value
-        input = data.get("input")
-
-        if not input:
-            error_msg = "No text provided"
-            await websocket.send_json({"error": error_msg})
-            return
-
-        streaming = (
-            ChatPromptTemplate.from_messages(
-                [
-                    (
-                        "system",
-                        "You are a helpful assistant in AI English Tutor app which helps users to learn English. Most of the users in this platform are not native Enlgish speaker. When you answer to the users, you should explain with easy vocabulary and grammar. Giving an example or explain the history of the word or phrase would be a good practice. Try to make your response concise so that the user can read it quickly. You can use Markdown format in your response.",
-                    ),
-                    ("human", "{input}"),
-                ]
-            )
-            | chat_model
-        ).astream({"input": input})
-
-        result = General(userId=user["id"], input=input)
-        result_id = result.id
-        result_id_str = str(result_id)
-
-        full_response = ""
-        async for chunk in streaming:
-            full_response += chunk.content
-            await websocket.send_json(
-                {
-                    "id": result_id_str,
-                    "type": type,
-                    "answer": chunk.content,
-                }
-            )
-
-        result.answer = full_response
-
-        result_dict = result.model_dump()
-        result_dict["_id"] = result_dict.pop("id")
-        await main_db.results.insert_one(result_dict)
-
-    except Exception as e:
-        import traceback
-
-        error_trace = traceback.format_exc()
-        print("Error on ws/breakdown: ", error_trace)
-        await websocket.send_json({"error": str(e)})
-    finally:
-        await websocket.close()
-
 
 
 if __name__ == "__main__":

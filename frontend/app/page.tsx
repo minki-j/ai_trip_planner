@@ -5,12 +5,15 @@ import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 
 import ChatContainer from "../components/ChatContainer";
-
+import { useToast } from "@/components/ui/use-toast";
 import { Message } from "@/types/types";
+import { returnWebSockerURL } from "@/lib/utils";
+
 
 export default function Home() {
   const { data: session, status } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
+  const { toast } = useToast();
 
   if (status === "loading") {
     return (
@@ -24,8 +27,53 @@ export default function Home() {
     redirect("/auth/signin");
   }
 
+  const connectWebSocket = () => {
+    let websocket: WebSocket;
+    try {
+      const wsUrl = returnWebSockerURL(session, "chat");
+      websocket = new WebSocket(wsUrl.toString());
 
-  const handleSendMessage = async (message: Message) => {
+      websocket.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        toast({
+          title: "Connection Error",
+          description: "WebSocket connection failed",
+          variant: "destructive",
+          duration: 4000,
+        });
+      };
+    } catch (error) {
+      console.error("Failed to connect to WebSocket:", error);
+      toast({
+        title: "Error",
+        description: "Failed to connect to WebSocket",
+        variant: "destructive",
+        duration: 4000,
+      });
+      return;
+    }
+    return websocket;
+  };
+
+  const assignOnMessageHanlder = async (
+    websocket: WebSocket,
+  ) => {
+    websocket.onmessage = async (event) => {
+      const response = JSON.parse(event.data);
+      console.log("WebSocket response: ", response);
+
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          message: response.message,
+          sentTime: new Date().toISOString(),
+          sender: "Assistant",
+        },
+      ]);
+    };
+  };
+
+  const onSendMessage = async (message: Message) => {
     if (message) {
       setMessages((prevMessages) => [
         ...prevMessages,
@@ -37,38 +85,52 @@ export default function Home() {
       ]);
     }
 
+    const websocket = connectWebSocket();
+    if (!websocket) {
+      return;
+    }
+
     try {
-      const response = await fetch("/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: message,
+      await Promise.race([
+        new Promise((resolve, reject) => {
+          websocket.onopen = resolve;
+          websocket.onerror = reject;
         }),
-      });
-
-      const data = await response.json();
-      console.log(data);
-
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        {
-          message: data.message_from_interviewer,
-          sentTime: new Date().toISOString(),
-          sender: "Assistant",
-        },
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("WebSocket Connection timeout")),
+            5000
+          )
+        ),
       ]);
-    } catch (error) {}
+
+      assignOnMessageHanlder(websocket);
+
+      websocket.send(
+        JSON.stringify({
+          input: message.message,
+        })
+      );
+    } catch (error: any) {
+      if (websocket.readyState !== WebSocket.CLOSED) {
+        websocket.close();
+      }
+      toast({
+        title: "Error",
+        description: `${
+          error.message ? error.message : "Sorry something went wrong"
+        }`,
+        variant: "destructive",
+        duration: 4000,
+      });
+    }
   };
 
   return (
-    <div className="max-w-4xl mx-auto h-full">
-      <ChatContainer
-        messages={messages}
-        setMessages={setMessages}
-        onSendMessage={handleSendMessage}
-      />
+    <div className="flex flex-col h-[calc(100vh-4.6rem)]">
+      <div className="flex-1 overflow-hidden">
+        <ChatContainer messages={messages} onSendMessage={onSendMessage} />
+      </div>
     </div>
   );
 }

@@ -11,9 +11,9 @@ import { ThemeColor } from '@/components/theme-color';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "EnglishTutor",
+  title: "Tour Assistant",
   description:
-    "Improve your English writing skills with AI-powered corrections and quizzes",
+    "An AI tour assistant to plan your trip",
   icons: {
     icon: [
       { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
@@ -75,9 +75,9 @@ export default function RootLayout({
                 </div>
               }
             >
-              <div className="min-h-screen bg-background">
+              <div className="min-h-screen bg-background overflow-hidden">
                 <Navigation />
-                <main className="container mx-auto px-4 py-8">{children}</main>
+                <main className="container mx-auto">{children}</main>
               </div>
             </Suspense>
             <Toaster />

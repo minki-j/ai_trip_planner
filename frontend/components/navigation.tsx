@@ -34,7 +34,7 @@ export function Navigation() {
         <div className="flex w-full items-center justify-between space-x-8">
           <div className="flex items-center space-x-8">
             <Link href="/" className="text-xl font-bold">
-              <span className="md:hidden">AIET</span>
+              <span className="md:hidden">Tour Assistant</span>
               <span className="hidden md:inline text-xl">Tour Assistant</span>
             </Link>
             <div className="flex items-center space-x-4">
@@ -71,7 +71,7 @@ export function Navigation() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <Button
+            {/* <Button
               variant="outline"
               size="icon"
               onClick={() => setTheme(theme === "light" ? "dark" : "light")}
@@ -79,7 +79,7 @@ export function Navigation() {
               <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               <span className="sr-only">Toggle theme</span>
-            </Button>
+            </Button> */}
             {session && session.user?.name !== "Temporary User" ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

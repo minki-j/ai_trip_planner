@@ -135,3 +135,8 @@ body .w-md-editor-text-input {
     transition: none !important;
   }
 }
+
+/* remove border for chat container */
+.cs-main-container {
+  border: none !important;
+}
