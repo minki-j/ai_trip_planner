@@ -1,6 +1,6 @@
 fastapi==0.115.6
 langchain==0.3.13
-langgraph==0.2.60
+langgraph==0.2.69
 pydantic==2.10.4
 python-dotenv==1.0.1
 varname==0.13.5

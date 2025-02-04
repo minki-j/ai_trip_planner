@@ -5,47 +5,26 @@ from fastapi.websockets import WebSocketDisconnect
 from contextlib import asynccontextmanager
 
 from bson import ObjectId
+from langchain_core.messages import AnyMessage
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional
 
 from app.db.mongodb import ping_mongodb, main_db
 from app.utils.compile_graph import compile_graph_with_async_checkpointer
+
 # from app.models import
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from app.llm import chat_model
 
+from app.workflows.entry_graph import g as entry_graph
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await ping_mongodb()
     yield
-
-
-class UserMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # Get user_id from request headers or query parameters
-        user_id = request.headers.get("user-id") or request.query_params.get("user_id")
-
-        if user_id:
-            # Fetch user info from database
-            user = await main_db.users.find_one({"googleId": user_id})
-            if user:
-                # Add user info to request state
-                request.state.user = {
-                    "id": user_id,
-                    "aboutMe": user.get("aboutMe", ""),
-                    "englishLevel": user.get("englishLevel", ""),
-                    "motherTongue": user.get("motherTongue", ""),
-                }
-            else:
-                request.state.user = None
-        else:
-            request.state.user = None
-
-        response = await call_next(request)
-        return response
 
 
 async def get_current_user_websocket(websocket: WebSocket) -> Optional[dict]:
@@ -57,8 +36,6 @@ async def get_current_user_websocket(websocket: WebSocket) -> Optional[dict]:
             return {
                 "id": user_id,
                 "aboutMe": user.get("aboutMe", ""),
-                "englishLevel": user.get("englishLevel", ""),
-                "motherTongue": user.get("motherTongue", ""),
             }
     return None
 
@@ -72,8 +49,6 @@ async def get_current_user_http(request: Request) -> Optional[dict]:
             return {
                 "id": user_id,
                 "aboutMe": user.get("aboutMe", ""),
-                "englishLevel": user.get("englishLevel", ""),
-                "motherTongue": user.get("motherTongue", ""),
             }
     return None
 
@@ -93,8 +68,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(UserMiddleware)
-
 
 @app.get("/health")
 async def health_check():
@@ -109,7 +82,6 @@ async def chat_ws(websocket: WebSocket):
     try:
         await websocket.accept()
         user = await get_current_user_websocket(websocket)
-        print("\n\nuser: ", user)
         if not user:
             await websocket.send_json(
                 {"error": "No user ID provided or user not found"}
@@ -118,7 +90,6 @@ async def chat_ws(websocket: WebSocket):
             return
 
         data = await websocket.receive_json()
-        print("\n\ndata: ", data)
 
         input = data.get("input")
 
@@ -127,41 +98,33 @@ async def chat_ws(websocket: WebSocket):
             await websocket.send_json({"error": error_msg})
             return
 
-        graph = main_graph
-        result = Correction(userId=user["id"], input=input)
-        workflow = await compile_graph_with_async_checkpointer(graph, type)
-
-        result_id = result.id
-        result_id_str = str(result_id)
+        workflow = await compile_graph_with_async_checkpointer(entry_graph, "entry")
 
         async for stream_mode, data in workflow.astream(
             {
                 "input": input,
-                "thread_id": result_id_str,
+                "thread_id": user["id"],
                 "aboutMe": user.get("aboutMe", ""),
             },
-            stream_mode=["custom"],
-            config={"configurable": {"thread_id": result_id_str}},
+            stream_mode=["custom", "updates"],
+            config={"configurable": {"thread_id": user["id"]}},
         ):
-            response_data = {
-                "id": result_id_str,
-                "type": type,
-            }
-            if "correctedText" in data.keys():
-                correctedText = data["correctedText"]
-                result.correctedText = correctedText
-                response_data["correctedText"] = correctedText
+            if stream_mode == "custom":
+                print("\n\ncustom: ", data)
+                pass
+            elif stream_mode == "updates":
+                print("\n\nupdates: ", data)
+                data = next(iter(data.values()))  # skip the graph name
+                if data.get("messages") is not None and hasattr(
+                    data["messages"][0], "content"
+                ):
+                    data = {
+                        "role": "Assistant",
+                        "message": data["messages"][0].content,
+                    }
 
-            if "correction" in data.keys():
-                correction = data["correction"]
-                result.corrections.append(correction)
-                response_data["correction"] = correction.model_dump()
+            await websocket.send_json(data)
 
-            await websocket.send_json(response_data)
-
-        result_dict = result.model_dump()
-        result_dict["_id"] = result_dict.pop("id")
-        await main_db.results.insert_one(result_dict)
     except Exception as e:
         import traceback
 
@@ -175,4 +138,4 @@ async def chat_ws(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

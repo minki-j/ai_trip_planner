@@ -27,6 +27,17 @@ class PyObjectId(ObjectId):
         field_schema.update(type="string")
         return field_schema
 
+
+class Stage(str, Enum):
+    INTRODUCTION = "introduction"
+    INQUIRY = "inquiry"
+    ASSIST = "assist"
+
+class Role(str, Enum):
+    User = "User"
+    Assistant = "Assistant"
+    ReasoningStep = "ReasoningStep"
+
 class CorrectionItem(BaseModel):
     correction: str
     explanation: str

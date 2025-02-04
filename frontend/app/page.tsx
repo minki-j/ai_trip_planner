@@ -9,10 +9,20 @@ import { useToast } from "@/components/ui/use-toast";
 import { Message } from "@/types/types";
 import { returnWebSockerURL } from "@/lib/utils";
 
+import { Role } from "@/types/types";
+
+const first_message =
+  "Hi, I'm your tour assistant! May I introduce how this tour assistant works?";
 
 export default function Home() {
   const { data: session, status } = useSession();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      message: first_message,
+      sentTime: new Date().toISOString(),
+      sender: Role.Assistant,
+    },
+  ]);
   const { toast } = useToast();
 
   if (status === "loading") {
@@ -55,19 +65,28 @@ export default function Home() {
     return websocket;
   };
 
-  const assignOnMessageHanlder = async (
-    websocket: WebSocket,
-  ) => {
+  const assignOnMessageHanlder = async (websocket: WebSocket) => {
     websocket.onmessage = async (event) => {
       const response = JSON.parse(event.data);
       console.log("WebSocket response: ", response);
+      if (!response) return;
+      if (response.error) {
+        console.error("Error:", response.error);
+        toast({
+          title: "Error",
+          description: response.error,
+          variant: "destructive",
+          duration: 4000,
+        });
+        return;
+      }
 
       setMessages((prevMessages) => [
         ...prevMessages,
         {
           message: response.message,
+          sender: response.role,
           sentTime: new Date().toISOString(),
-          sender: "Assistant",
         },
       ]);
     };
@@ -80,7 +99,7 @@ export default function Home() {
         {
           message: message.message,
           sentTime: new Date().toISOString(),
-          sender: "User",
+          sender: Role.User,
         },
       ]);
     }
