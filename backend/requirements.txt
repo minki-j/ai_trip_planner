@@ -1,0 +1,15 @@
+fastapi==0.115.6
+langchain==0.3.13
+langgraph==0.2.60
+pydantic==2.10.4
+python-dotenv==1.0.1
+varname==0.13.5
+python-dotenv==1.0.1
+langchain_openai==0.2.14 
+uvicorn==0.34.0
+websockets==14.1
+langgraph-checkpoint-mongodb==0.1.0
+python-decouple==3.8
+mongoose==0.0.1
+pymongo==4.9.2
+pytz==2024.2

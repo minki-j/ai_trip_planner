@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 70%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 70%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 70%;
+    --primary: 0 0% 70%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 70%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 80%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 70%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 0 0% 70%;
+    --chart-2: 0 0% 70%;
+    --chart-3: 0 0% 70%;
+    --chart-4: 0 0% 70%;
+    --chart-5: 0 0% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+[data-color-mode*="dark"] {
+  --md-bg-color: hsl(var(--background));
+  --md-border-color: hsl(var(--border));
+}
+
+.w-md-editor {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  height: 100% !important;
+  display: block !important;
+  min-height: 0px !important;
+}
+
+.w-md-editor-content {
+  height: 100% !important;
+}
+
+body .w-md-editor-text-pre > code,
+body .w-md-editor-text-input {
+  height: 100% !important;
+  font-size: 23px !important;
+  line-height: 27px !important;
+}
+
+/* prevent hover styles on mobile */
+@media (hover: none) {
+  /* Background hover effects */
+  [class*="hover\:bg-"]:hover {
+    background-color: transparent !important;
+  }
+
+  /* Opacity hover effects */
+  [class*="hover\:opacity-"]:hover,
+  [class*="group-hover\:opacity-"]:hover,
+  .group:hover [class*="group-hover\:opacity-"] {
+    opacity: 0 !important;
+  }
+
+  /* Text color hover effects */
+  [class*="hover\:text-"]:hover {
+    color: inherit !important;
+  }
+
+  /* Underline hover effects */
+  [class*="hover\:underline"]:hover {
+    text-decoration: none !important;
+  }
+
+  /* Transition effects */
+  .transition-opacity,
+  .transition-colors {
+    transition: none !important;
+  }
+}

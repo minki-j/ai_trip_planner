@@ -1,0 +1,15 @@
+# data
+data/
+
+#pycache
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# misc
+.DS_Store
+*.pem
+
+.env
