@@ -1,9 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Annotated, Any
-from app.models import CorrectionItem
-from langgraph.graph.message import add_messages
-from app.models import Stage
 from langchain_core.messages import AIMessage
+from app.models import Stage
 
 
 # ===========================================
@@ -22,19 +20,26 @@ def update_str(_, new: str):
 #                    STATE
 # ===========================================
 class OutputState(BaseModel):
-    messages: Annotated[list, add_messages] = Field(default_factory=list)
+    messages: Annotated[list, extend_list] = Field(default_factory=list)
+
 
 class InputState(BaseModel):
-    thread_id: str
-    input: str
-    user_name: str = Field(default="unknown")
-    trip_location: str = Field(default="unknown")
-    trip_date: str = Field(default="unknown")
-    about_me: str = Field(default="unknown")
+    input: str = Field(default=None)
+    user_id: str = Field(default=None)
+    user_name: str = Field(default=None)
+    user_email: str = Field(default=None)
+    user_interests: list[str] = Field(default_factory=list)
+    user_extra_info: str = Field(default=None)
+
+    trip_transportation_schedule: list[str] = Field(default_factory=list)
+    trip_location: str = Field(default=None)
+    trip_duration: str = Field(default=None)
+    trip_budget: str = Field(default=None)
+    trip_theme: str = Field(default=None)
+    trip_fixed_schedules: list[str] = Field(default_factory=list)
 
 
 class OverallState(InputState, OutputState):
-    stage: Stage = Stage.INTRODUCTION
-    
-    intro_rationale: str = ""
-    intro_reply: str = ""
+    stage: Stage = Stage.INQUIRY
+
+

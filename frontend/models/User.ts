@@ -3,12 +3,15 @@ import mongoose from "mongoose";
 export interface User {
   id: string;
   googleId: string;
-  name: string;
-  email: string;
-  image?: string;
-  aboutMe?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  user_name: string;
+  user_interests: string[];
+  user_extra_info: string;
+  trip_transportation_schedule: string[];
+  trip_location: string;
+  trip_duration: string;
+  trip_budget: string;
+  trip_theme: string;
+  trip_fixed_schedules: string[];
 }
 
 const UserSchema = new mongoose.Schema<User>({
@@ -17,28 +20,41 @@ const UserSchema = new mongoose.Schema<User>({
     required: true,
     unique: true,
   },
-  name: {
+  user_name: {
     type: String,
     required: true,
   },
-  email: {
+  user_interests: {
+    type: [String],
+    default: [],
+  },
+  user_extra_info: {
     type: String,
-    required: true,
-    unique: true,
+    default: "",
   },
-  image: {
+  trip_transportation_schedule: {
+    type: [String],
+    default: [],
+  },
+  trip_location: {
     type: String,
+    default: "",
   },
-  aboutMe: {
+  trip_duration: {
     type: String,
+    default: "",
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
+  trip_budget: {
+    type: String,
+    default: "",
   },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
+  trip_theme: {
+    type: String,
+    default: "",
+  },
+  trip_fixed_schedules: {
+    type: [String],
+    default: [],
   },
 });
 

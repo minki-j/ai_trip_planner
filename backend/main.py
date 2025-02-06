@@ -10,7 +10,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional
 
 from app.db.mongodb import ping_mongodb, main_db
-from app.utils.compile_graph import compile_graph_with_async_checkpointer
+from app.utils.compile_graph import (
+    compile_graph_with_async_checkpointer,
+    compile_graph_with_sync_checkpointer,
+)
 
 # from app.models import
 
@@ -35,7 +38,6 @@ async def get_current_user_websocket(websocket: WebSocket) -> Optional[dict]:
         if user:
             return {
                 "id": user_id,
-                "aboutMe": user.get("aboutMe", ""),
             }
     return None
 
@@ -48,7 +50,6 @@ async def get_current_user_http(request: Request) -> Optional[dict]:
         if user:
             return {
                 "id": user_id,
-                "aboutMe": user.get("aboutMe", ""),
             }
     return None
 
@@ -74,6 +75,72 @@ async def health_check():
     return {"status": "healthy", "message": "Service is running"}
 
 
+@app.post("/add_user")
+async def add_user(request: Request):
+    user = await request.json()
+    print("user: ", user)
+
+    if not user:
+        return {"error": "No user provided"}
+    compiled_entry_graph = compile_graph_with_sync_checkpointer(entry_graph, "entry")
+    config = {"configurable": {"thread_id": user["id"]}}
+    compiled_entry_graph.update_state(
+        config,
+        {
+            "user_name": user["name"],
+            "user_id": user["id"],
+            "user_email": user["email"],
+        },
+    )
+    return True
+
+
+@app.post("/update_trip")
+async def update_trip(request: Request):
+    form_data = await request.json()
+
+    if not form_data:
+        return {"error": "No form data provided"}
+
+    # convert string to list
+    form_data["user_interests"] = [
+        item.strip() for item in form_data["user_interests"].split(",") if item.strip()
+    ]
+    form_data["trip_transportation_schedule"] = [
+        schedule.strip()
+        for schedule in form_data["trip_transportation_schedule"].split("\n")
+        if schedule.strip()
+    ]
+    form_data["trip_fixed_schedules"] = [
+        schedule.strip()
+        for schedule in form_data["trip_fixed_schedules"].split("\n")
+        if schedule.strip()
+    ]
+
+    # update the state
+    compiled_entry_graph = compile_graph_with_sync_checkpointer(entry_graph, "entry")
+    config = {"configurable": {"thread_id": form_data["id"]}}
+    compiled_entry_graph.update_state(config, form_data)
+    return JSONResponse(
+        status_code=200,
+        content={"status": "success", "message": "Trip updated successfully"}
+    )
+
+
+@app.get("/user_info")
+async def get_user_info(user: dict = Depends(get_current_user_http)):
+
+    if not user:
+        return {"error": "No user provided or user not found"}
+    compiled_entry_graph = compile_graph_with_sync_checkpointer(entry_graph, "entry")
+    config = {"configurable": {"thread_id": user["id"]}}
+    state = compiled_entry_graph.get_state(config, subgraphs=True).values
+
+    if not state:
+        return None
+    return state
+
+
 @app.websocket("/ws/chat")
 async def chat_ws(websocket: WebSocket):
     """
@@ -90,8 +157,25 @@ async def chat_ws(websocket: WebSocket):
             return
 
         #! Temporary: Use dummy id
-        user["id"] = "7"
-
+        initial_state = {
+            "user_id": "113941493783490086722",
+            "user_name": "MinKi Jung",
+            "user_email": "qmsoqm2@gmail.com",
+            "user_interests": ["AI"],
+            "user_extra_info": "I'm attending a conference so only have free time after 5:30. Recommend me a good restaurant and some nice place to have fun. ",
+            "trip_transportation_schedule": [
+                "Arrival: Feb 19th 1:04pm LaGuardia Airport\r",
+                "Departure: Feb 22nd 06:55pm Newark Liberty Int., Terminal A",
+            ],
+            "trip_location": "NY",
+            "trip_duration": "Feb 19 - Feb 22",
+            "trip_budget": "200 dollars",
+            "trip_theme": "urban",
+            "trip_fixed_schedules": [
+                "Feb 19th 7pm - 10:30pm Speaker dinner\r",
+                "Feb 20-22 8AM-5:30PM AIE Summit",
+            ],
+        }
 
         data = await websocket.receive_json()
 
@@ -107,8 +191,8 @@ async def chat_ws(websocket: WebSocket):
         async for stream_mode, data in workflow.astream(
             {
                 "input": input,
-                "thread_id": user["id"],
-                "aboutMe": user.get("aboutMe", ""),
+                "user_id": user["id"],
+                "user_name": user.get("name", ""),
             },
             stream_mode=["custom", "updates"],
             config={"configurable": {"thread_id": user["id"]}},

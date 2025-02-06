@@ -1,0 +1,48 @@
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { client } from "@/lib/mongodb";
+import { TripForm } from "./trip-form";
+import { User } from "@/models/User";
+import { getUserInfo } from "./actions";
+
+
+export default async function ProfilePage() {
+  const session = await getServerSession(authOptions);
+
+  if (!session || !session.user) {
+    redirect("/");
+  }
+
+  const state = await getUserInfo();
+
+  if (!state) {
+    return (
+      <div className="container mx-auto py-8">
+        <p className="text-muted-foreground">No user found</p>
+      </div>
+    );
+  }
+
+
+  const user: User = {
+    id: state.user_id,
+    googleId: state.googleId,
+    user_name: state.user_name,
+    user_interests: state.user_interests,
+    user_extra_info: state.user_extra_info,
+    trip_transportation_schedule: state.trip_transportation_schedule,
+    trip_location: state.trip_location,
+    trip_duration: state.trip_duration,
+    trip_budget: state.trip_budget,
+    trip_theme: state.trip_theme,
+    trip_fixed_schedules: state.trip_fixed_schedules,
+  };
+
+  return (
+    <div className="container mx-auto py-8 max-w-2xl px-4">
+      <h1 className="text-xl font-bold mb-6">Trip Information</h1>
+      <TripForm user={user} />
+    </div>
+  );
+}

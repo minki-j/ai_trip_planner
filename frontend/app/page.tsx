@@ -12,7 +12,7 @@ import { returnWebSockerURL } from "@/lib/utils";
 import { Role } from "@/types/types";
 
 const first_message =
-  "Hi, I'm your tour assistant! May I introduce how this tour assistant works?";
+  "Hi, I'm your tour assistant! Shall we start plannig your trip?";
 
 export default function Home() {
   const { data: session, status } = useSession();

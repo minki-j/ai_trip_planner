@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { PenLine, Brain, User, Clock, Sun, Moon } from "lucide-react";
+import { PenLine, Brain, User, Clock, Sun, Moon, MapPin } from "lucide-react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import {
@@ -26,6 +26,7 @@ export function Navigation() {
 
   const links = [
     { href: "/schedule", label: "Schedule", icon: Clock, requiresAuth: true },
+    { href: "/trip_info", label: "Trip Info", icon: MapPin , requiresAuth: true },
   ];
 
   return (
@@ -34,7 +35,7 @@ export function Navigation() {
         <div className="flex w-full items-center justify-between space-x-8">
           <div className="flex items-center space-x-8">
             <Link href="/" className="text-xl font-bold">
-              <span className="md:hidden">Tour Assistant</span>
+              <span className="md:hidden">TA</span>
               <span className="hidden md:inline text-xl">Tour Assistant</span>
             </Link>
             <div className="flex items-center space-x-4">
@@ -99,11 +100,11 @@ export function Navigation() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem asChild>
+                  {/* <DropdownMenuItem asChild>
                     <Link href="/profile" className="cursor-pointer">
                       Profile
                     </Link>
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> */}
                   <DropdownMenuItem
                     onClick={() => signOut()}
                     className="cursor-pointer"
