@@ -3,11 +3,7 @@ from typing import Annotated, Any
 from app.models import CorrectionItem
 from langgraph.graph.message import add_messages
 from app.models import Stage
-
-
-first_message = (
-    "Hi, I'm your tour assistant! May I introduce how this tour assistant works?"
-)
+from langchain_core.messages import AIMessage
 
 
 # ===========================================
@@ -26,15 +22,19 @@ def update_str(_, new: str):
 #                    STATE
 # ===========================================
 class OutputState(BaseModel):
-    messages: Annotated[list, add_messages] = [first_message]
-
+    messages: Annotated[list, add_messages] = Field(default_factory=list)
 
 class InputState(BaseModel):
     thread_id: str
     input: str
-    aboutMe: str = Field(default="")
+    user_name: str = Field(default="unknown")
+    trip_location: str = Field(default="unknown")
+    trip_date: str = Field(default="unknown")
+    about_me: str = Field(default="unknown")
 
 
 class OverallState(InputState, OutputState):
     stage: Stage = Stage.INTRODUCTION
-    pass
+    
+    intro_rationale: str = ""
+    intro_reply: str = ""

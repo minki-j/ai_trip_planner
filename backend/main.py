@@ -5,7 +5,7 @@ from fastapi.websockets import WebSocketDisconnect
 from contextlib import asynccontextmanager
 
 from bson import ObjectId
-from langchain_core.messages import AnyMessage
+from langchain_core.messages import AnyMessage, HumanMessage, AIMessage
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Optional
 
@@ -89,6 +89,10 @@ async def chat_ws(websocket: WebSocket):
             await websocket.close()
             return
 
+        #! Temporary: Use dummy id
+        user["id"] = "7"
+
+
         data = await websocket.receive_json()
 
         input = data.get("input")
@@ -111,19 +115,19 @@ async def chat_ws(websocket: WebSocket):
         ):
             if stream_mode == "custom":
                 print("\n\ncustom: ", data)
-                pass
+                await websocket.send_json(data)
             elif stream_mode == "updates":
-                print("\n\nupdates: ", data)
+                # print("\n\nupdates: ", data)
                 data = next(iter(data.values()))  # skip the graph name
-                if data.get("messages") is not None and hasattr(
-                    data["messages"][0], "content"
-                ):
-                    data = {
-                        "role": "Assistant",
-                        "message": data["messages"][0].content,
-                    }
-
-            await websocket.send_json(data)
+                if data.get("messages") is not None:
+                    last_message = data["messages"][-1]
+                    if isinstance(last_message, AIMessage):
+                        # print("\n\nlast_message: ", last_message)
+                        data = {
+                            "role": "Assistant",
+                            "message": last_message.content,
+                        }
+                        await websocket.send_json(data)
 
     except Exception as e:
         import traceback

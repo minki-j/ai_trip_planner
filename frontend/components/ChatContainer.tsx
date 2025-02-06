@@ -11,6 +11,8 @@ import {
 import ChatMessage from "./ChatMessage";
 import { Message } from "@/types/types";
 
+import {Role} from '@/types/types';
+
 interface ChatContainerProps {
   messages: Message[];
   onSendMessage: (message: Message) => void;
@@ -59,7 +61,7 @@ const ChatContainer: React.FC<ChatContainerProps> = ({
             onSendMessage({
               message: cleanMessage,
               sentTime: new Date().toISOString(),
-              sender: "User",
+              sender: Role.User,
             });
             setInputValue("");
             fullTranscriptRef.current = "";
