@@ -15,21 +15,21 @@ from app.llm import chat_model
 
 from app.models import Stage, Role
 
-from .inquiry.graph import g as inquiry_graph
-from .assist.graph import g as assist_graph
+from .generate_plan.graph import g as generate_plan
 from app.utils.compile_graph import compile_graph_with_sync_checkpointer
 
-inquiry_graph = compile_graph_with_sync_checkpointer(inquiry_graph, "inquiry")
-assist_graph = compile_graph_with_sync_checkpointer(assist_graph, "assist")
+generate_plan = compile_graph_with_sync_checkpointer(generate_plan, "assist")
 
 
 def stage_router(state: OverallState):
     print("\n>>> NODE: stage_router")
 
-    if state.stage == Stage.INQUIRY:
-        return n(inquiry_graph)
-    elif state.stage == Stage.ASSIST:
-        return n(assist_graph)
+    if state.stage == Stage.FIRST_GENERATION:
+        return n(generate_plan)
+    elif state.stage == Stage.APPLY_UPDATED_TRIP_INFO:
+        return n(generate_plan) #! 
+    elif state.stage == Stage.MODIFY:
+        return n(generate_plan) #!
     else:
         raise ValueError(f"Invalid stage: {state.stage}")
 
@@ -38,12 +38,9 @@ g = StateGraph(OverallState, input=InputState, output=OutputState)
 g.add_conditional_edges(
     START,
     stage_router,
-    [n(inquiry_graph), n(assist_graph)],
+    [n(generate_plan)],
 )
 
 
-g.add_node(n(inquiry_graph), inquiry_graph)
-g.add_edge(n(inquiry_graph), END)
-
-g.add_node(n(assist_graph), assist_graph)
-g.add_edge(n(assist_graph), END)
+g.add_node(n(generate_plan), generate_plan)
+g.add_edge(n(generate_plan), END)

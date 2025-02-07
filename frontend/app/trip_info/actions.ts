@@ -31,14 +31,12 @@ export async function getUserInfo() {
   }
 }
 
-export async function updateTrip(formData: FormData) {
+export async function updateTrip(formData: Record<string, any>) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
   }
-
-  const formDataObject = Object.fromEntries(formData.entries());
-  formDataObject["id"] = session.user.id;
+  formData["id"] = session.user.id;
 
   const response = await fetch(
     `${backendUrl}/update_trip?user_id=${session.user.id}`,
@@ -47,7 +45,7 @@ export async function updateTrip(formData: FormData) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(formDataObject),
+      body: JSON.stringify(formData),
     }
   );
   if (!response.ok) {

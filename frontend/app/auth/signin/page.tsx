@@ -21,7 +21,7 @@ export default function SignIn() {
   }, [status, router]);
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center">
+    <div className="min-h-[80vh] px-6 flex items-center justify-center">
       <Card className="w-full max-w-md p-8">
         <div className="text-center space-y-6">
           <div className="flex justify-center">

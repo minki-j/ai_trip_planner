@@ -31,9 +31,21 @@ export default async function ProfilePage() {
     user_name: state.user_name,
     user_interests: state.user_interests,
     user_extra_info: state.user_extra_info,
-    trip_transportation_schedule: state.trip_transportation_schedule,
+    
+    trip_arrival_date: state.trip_arrival_date,
+    trip_arrival_time: state.trip_arrival_time,
+    trip_arrival_terminal: state.trip_arrival_terminal,
+    
+    trip_departure_date: state.trip_departure_date,
+    trip_departure_time: state.trip_departure_time,
+    trip_departure_terminal: state.trip_departure_terminal,
+    
+    trip_start_of_day_at: state.trip_start_of_day_at,
+    trip_end_of_day_at: state.trip_end_of_day_at,
+    
     trip_location: state.trip_location,
-    trip_duration: state.trip_duration,
+    trip_accomodation_location: state.trip_accomodation_location,
+    
     trip_budget: state.trip_budget,
     trip_theme: state.trip_theme,
     trip_fixed_schedules: state.trip_fixed_schedules,

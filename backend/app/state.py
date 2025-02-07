@@ -31,15 +31,28 @@ class InputState(BaseModel):
     user_interests: list[str] = Field(default_factory=list)
     user_extra_info: str = Field(default=None)
 
-    trip_transportation_schedule: list[str] = Field(default_factory=list)
+    trip_arrival_date: str = Field(default=None)
+    trip_arrival_time: str = Field(default=None)
+    trip_arrival_terminal: str = Field(default=None)
+
+    trip_departure_date: str = Field(default=None)
+    trip_departure_time: str = Field(default=None)
+    trip_departure_terminal: str = Field(default=None)
+    
+    trip_start_of_day_at: str = Field(default=None)
+    trip_end_of_day_at: str = Field(default=None)
+    
     trip_location: str = Field(default=None)
-    trip_duration: str = Field(default=None)
+    trip_accomodation_location: str = Field(default=None)
+    
     trip_budget: str = Field(default=None)
     trip_theme: str = Field(default=None)
     trip_fixed_schedules: list[str] = Field(default_factory=list)
 
 
 class OverallState(InputState, OutputState):
-    stage: Stage = Stage.INQUIRY
+    stage: Stage = Stage.FIRST_GENERATION
+    how_many_schedules: int = Field(default=10, description="The total number of events or places that the user would visit. This number is calculated based on the free time of the user")
+    previous_state_before_update: str = Field(default=None)
 
-
+    queries_for_internet_search: list[str] = Field(default_factory=list)

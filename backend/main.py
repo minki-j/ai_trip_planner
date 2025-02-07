@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.websockets import WebSocketDisconnect
 from contextlib import asynccontextmanager
+import json
 
 from bson import ObjectId
 from langchain_core.messages import AnyMessage, HumanMessage, AIMessage
@@ -98,6 +99,7 @@ async def add_user(request: Request):
 @app.post("/update_trip")
 async def update_trip(request: Request):
     form_data = await request.json()
+    print("form_data: ", form_data)
 
     if not form_data:
         return {"error": "No form data provided"}
@@ -106,20 +108,21 @@ async def update_trip(request: Request):
     form_data["user_interests"] = [
         item.strip() for item in form_data["user_interests"].split(",") if item.strip()
     ]
-    form_data["trip_transportation_schedule"] = [
-        schedule.strip()
-        for schedule in form_data["trip_transportation_schedule"].split("\n")
-        if schedule.strip()
-    ]
+    
     form_data["trip_fixed_schedules"] = [
         schedule.strip()
         for schedule in form_data["trip_fixed_schedules"].split("\n")
         if schedule.strip()
     ]
 
-    # update the state
     compiled_entry_graph = compile_graph_with_sync_checkpointer(entry_graph, "entry")
     config = {"configurable": {"thread_id": form_data["id"]}}
+
+    # get previous state and cache it to previous_state_before_update field
+    previous_state = compiled_entry_graph.get_state(config).values
+    form_data["previous_state_before_update"] = json.dumps(previous_state)
+    
+    # update the state with form data
     compiled_entry_graph.update_state(config, form_data)
     return JSONResponse(
         status_code=200,
@@ -141,11 +144,8 @@ async def get_user_info(user: dict = Depends(get_current_user_http)):
     return state
 
 
-@app.websocket("/ws/chat")
-async def chat_ws(websocket: WebSocket):
-    """
-    Process chat messages.
-    """
+@app.websocket("/ws/generate_schedule")
+async def generate_schedule_ws(websocket: WebSocket):
     try:
         await websocket.accept()
         user = await get_current_user_websocket(websocket)

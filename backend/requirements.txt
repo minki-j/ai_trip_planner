@@ -6,6 +6,7 @@ python-dotenv==1.0.1
 varname==0.13.5
 python-dotenv==1.0.1
 langchain_openai==0.2.14 
+langchain_community==0.3.16
 uvicorn==0.34.0
 websockets==14.1
 langgraph-checkpoint-mongodb==0.1.0

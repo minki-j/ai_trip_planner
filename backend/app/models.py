@@ -5,11 +5,13 @@ import pytz
 from bson import ObjectId
 from enum import Enum
 
+
 class ResponseType(str, Enum):
     CORRECTION = "correction"
     VOCABULARY = "vocabulary"
     BREAKDOWN = "breakdown"
     GENERAL = "general"
+
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -29,22 +31,26 @@ class PyObjectId(ObjectId):
 
 
 class Stage(str, Enum):
-    INTRODUCTION = "introduction"
-    INQUIRY = "inquiry"
-    ASSIST = "assist"
+    FIRST_GENERATION = "first_generation"
+    APPLY_UPDATED_TRIP_INFO = "apply_updated_trip_info"
+    MODIFY = "modify"
+
 
 class Role(str, Enum):
     User = "User"
     Assistant = "Assistant"
     ReasoningStep = "ReasoningStep"
 
+
 class CorrectionItem(BaseModel):
     correction: str
     explanation: str
 
+
 class ExtraQuestion(BaseModel):
     question: str
     answer: str
+
 
 class BaseResponseModel(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -52,16 +58,20 @@ class BaseResponseModel(BaseModel):
     userId: str
     input: str
     extraQuestions: List[ExtraQuestion] = Field(default_factory=list)
-    createdAt: datetime = Field(default_factory=lambda: datetime.now(pytz.timezone('US/Eastern')), frozen=True)
+    createdAt: datetime = Field(
+        default_factory=lambda: datetime.now(pytz.timezone("US/Eastern")), frozen=True
+    )
 
     class Config:
         populate_by_name = True
         json_encoders = {ObjectId: str}
 
+
 class Correction(BaseResponseModel):
     type: ResponseType = ResponseType.CORRECTION
     correctedText: str = Field(default="")
     corrections: List[CorrectionItem] = Field(default_factory=list)
+
 
 class Vocabulary(BaseResponseModel):
     type: ResponseType = ResponseType.VOCABULARY
@@ -69,10 +79,12 @@ class Vocabulary(BaseResponseModel):
     translated_vocabulary: str = Field(default="")
     examples: List[str] = Field(default_factory=list)
 
+
 class Breakdown(BaseResponseModel):
     type: ResponseType = ResponseType.BREAKDOWN
     paraphrase: str = Field(default="")
     breakdown: str = Field(default="")
+
 
 class General(BaseResponseModel):
     type: ResponseType = ResponseType.GENERAL

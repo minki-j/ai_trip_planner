@@ -6,9 +6,21 @@ export interface User {
   user_name: string;
   user_interests: string[];
   user_extra_info: string;
-  trip_transportation_schedule: string[];
+
+  trip_arrival_date: string;
+  trip_arrival_time: string;
+  trip_arrival_terminal: string;
+
+  trip_departure_date: string;
+  trip_departure_time: string;
+  trip_departure_terminal: string;
+  
+  trip_start_of_day_at: string;
+  trip_end_of_day_at: string;
+  
   trip_location: string;
-  trip_duration: string;
+  trip_accomodation_location: string;
+
   trip_budget: string;
   trip_theme: string;
   trip_fixed_schedules: string[];
@@ -32,15 +44,35 @@ const UserSchema = new mongoose.Schema<User>({
     type: String,
     default: "",
   },
-  trip_transportation_schedule: {
-    type: [String],
-    default: [],
+  trip_arrival_date: {
+    type: String,
+    default: "",
+  },
+  trip_arrival_time: {
+    type: String,
+    default: "",
+  },
+  trip_arrival_terminal: {
+    type: String,
+    default: "",
+  },
+  trip_departure_date: {
+    type: String,
+    default: "",
+  },
+  trip_departure_time: {
+    type: String,
+    default: "",
+  },
+  trip_departure_terminal: {
+    type: String,
+    default: "",
   },
   trip_location: {
     type: String,
     default: "",
   },
-  trip_duration: {
+  trip_accomodation_location: {
     type: String,
     default: "",
   },

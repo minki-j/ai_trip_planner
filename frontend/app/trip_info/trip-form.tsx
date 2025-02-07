@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { redirect } from "next/navigation";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -13,8 +17,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
 
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { updateTrip } from "./actions";
 
 interface TripFormProps {
@@ -22,9 +27,21 @@ interface TripFormProps {
     user_name: string;
     user_interests: string[];
     user_extra_info: string;
-    trip_transportation_schedule: string[];
+    
+    trip_arrival_date: string;
+    trip_arrival_time: string;
+    trip_arrival_terminal: string;
+    
+    trip_departure_date: string;
+    trip_departure_time: string;
+    trip_departure_terminal: string;
+    
+    trip_start_of_day_at: string;
+    trip_end_of_day_at: string;
+    
     trip_location: string;
-    trip_duration: string;
+    trip_accomodation_location: string;
+
     trip_budget: string;
     trip_theme: string;
     trip_fixed_schedules: string[];
@@ -32,6 +49,9 @@ interface TripFormProps {
 }
 
 export function TripForm({ user }: TripFormProps) {
+  const [arrivalDate, setArrivalDate] = useState<Date>();
+  const [departureDate, setDepartureDate] = useState<Date>();
+  
   const { toast } = useToast();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -43,12 +63,16 @@ export function TripForm({ user }: TripFormProps) {
   }, [user.user_extra_info]);
 
   async function clientAction(formData: FormData) {
-    const success = await updateTrip(formData);
+    const formDataObject = Object.fromEntries(formData.entries());
+    formDataObject["trip_arrival_date"] = arrivalDate ? format(arrivalDate, "yyyy-MM-dd") : "";
+    formDataObject["trip_departure_date"] = departureDate ? format(departureDate, "yyyy-MM-dd") : "";
+    const success = await updateTrip(formDataObject);
     if (success) {
       toast({
         title: "Success",
         description: "Your profile has been updated successfully.",
       });
+      redirect("/schedule");
     } else {
       toast({
         title: "Error",
@@ -69,6 +93,7 @@ export function TripForm({ user }: TripFormProps) {
           id="user_name"
           name="user_name"
           defaultValue={user.user_name ?? ""}
+          required
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />
       </div>
@@ -89,27 +114,14 @@ export function TripForm({ user }: TripFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="trip_location" className="block text-sm font-medium">
-          Location
+          Where are you visiting?
         </Label>
         <Input
           type="text"
           id="trip_location"
           name="trip_location"
           defaultValue={user.trip_location ?? ""}
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="trip_duration" className="block text-sm font-medium">
-          Duration
-        </Label>
-        <Input
-          type="text"
-          id="trip_duration"
-          name="trip_duration"
-          defaultValue={user.trip_duration ?? ""}
-          placeholder="e.g., Feb 19 - March 1"
+          required
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />
       </div>
@@ -132,7 +144,7 @@ export function TripForm({ user }: TripFormProps) {
         <Label htmlFor="trip_theme" className="block text-sm font-medium">
           Theme
         </Label>
-        <Select name="trip_theme" defaultValue={user.trip_theme ?? ""}>
+        <Select name="trip_theme" defaultValue={user.trip_theme ?? ""} required>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a trip theme" />
           </SelectTrigger>
@@ -149,21 +161,135 @@ export function TripForm({ user }: TripFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="trip_transportation_schedule" className="block text-sm font-medium">
-          Transportation Schedule
+        <Label
+          htmlFor="trip_arrival_info"
+          className="block text-sm font-medium"
+        >
+          Arrival Time
         </Label>
-        <Textarea
-          id="trip_transportation_schedule"
-          name="trip_transportation_schedule"
-          defaultValue={user.trip_transportation_schedule?.join("\n") ?? ""}
-          rows={4}
-          placeholder="Enter transportation schedules (one per line)"
+        <DatePicker
+          value={arrivalDate}
+          onChange={(date) => setArrivalDate(date)}
+          name="trip_arrival_date"
+        />
+        <Input
+          type="time"
+          id="trip_arrival_time"
+          name="trip_arrival_time"
+          required
+          defaultValue={user.trip_arrival_time ?? "09:00"}
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="trip_fixed_schedules" className="block text-sm font-medium">
+        <Label
+          htmlFor="trip_arrival_terminal"
+          className="block text-sm font-medium"
+        >
+          Arrival Terminal
+        </Label>
+        <Input
+          id="trip_arrival_terminal"
+          name="trip_arrival_terminal"
+          required
+          defaultValue={user.trip_arrival_terminal ?? ""}
+          placeholder="e.g. Laguardia Airport"
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label
+          htmlFor="trip_departure_info"
+          className="block text-sm font-medium"
+        >
+          Departure Time
+        </Label>
+        <DatePicker
+          value={departureDate}
+          onChange={(date) => setDepartureDate(date)}
+          name="trip_departure_date"
+        />
+        <Input
+          type="time"
+          id="trip_departure_time"
+          name="trip_departure_time"
+          required
+          defaultValue={user.trip_departure_time ?? "09:00"}
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label
+          htmlFor="trip_departure_terminal"
+          className="block text-sm font-medium"
+        >
+          Departure Terminal
+        </Label>
+        <Input
+          id="trip_departure_terminal"
+          name="trip_departure_terminal"
+          required
+          defaultValue={user.trip_departure_terminal ?? ""}
+          placeholder="e.g. Laguardia Airport, Feb 22th 9:35 PM"
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label
+          htmlFor="trip_accomodation_location"
+          className="block text-sm font-medium"
+        >
+          Accomodation Location
+        </Label>
+        <Input
+          id="trip_accomodation_location"
+          name="trip_accomodation_location"
+          required
+          placeholder="e.g. 2658 Broadway"
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label
+          htmlFor="trip_start_of_day"
+          className="block text-sm font-medium"
+        >
+          Start of Day
+        </Label>
+        <Input
+          type="time"
+          id="trip_start_of_day"
+          name="trip_start_of_day"
+          required
+          defaultValue={user.trip_start_of_day ?? "09:00"}
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="trip_end_of_day" className="block text-sm font-medium">
+          End of Day
+        </Label>
+        <Input
+          type="time"
+          id="trip_end_of_day"
+          name="trip_end_of_day"
+          required
+          defaultValue={user.trip_end_of_day ?? "21:00"}
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label
+          htmlFor="trip_fixed_schedules"
+          className="block text-sm font-medium"
+        >
           Fixed Schedules
         </Label>
         <Textarea
