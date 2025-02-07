@@ -130,8 +130,29 @@ async def update_trip(request: Request):
     )
 
 
-@app.get("/user_info")
-async def get_user_info(user: dict = Depends(get_current_user_http)):
+@app.post("/update_schedule")
+async def update_schedule(
+    request: Request, user: dict = Depends(get_current_user_http)
+):
+    new_schedule_data = await request.json()
+    print("new_schedule_data: ", new_schedule_data)
+
+    if not new_schedule_data:
+        return {"error": "No form data provided"}
+
+    compiled_entry_graph = compile_graph_with_sync_checkpointer(entry_graph, "entry")
+    config = {"configurable": {"thread_id": user["id"]}}
+
+    # update the state with form data
+    compiled_entry_graph.update_state(config, new_schedule_data)
+    return JSONResponse(
+        status_code=200,
+        content={"status": "success", "message": "Schedule updated successfully"}
+    )
+
+
+@app.get("/graph_state")
+async def get_graph_state(user: dict = Depends(get_current_user_http)):
 
     if not user:
         return {"error": "No user provided or user not found"}
@@ -156,7 +177,7 @@ async def generate_schedule_ws(websocket: WebSocket):
             await websocket.close()
             return
 
-        #! Temporary: Use dummy id
+        #! dummy 
         initial_state = {
             "user_id": "113941493783490086722",
             "user_name": "MinKi Jung",

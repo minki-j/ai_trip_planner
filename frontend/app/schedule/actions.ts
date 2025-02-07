@@ -22,7 +22,6 @@ export async function getGraphState() {
       throw new Error("Network response was not ok");
     }
     const state = await response.json();
-    // console.log("state: ", state);
     return state;
   } catch (error) {
     console.error(error);
@@ -30,7 +29,7 @@ export async function getGraphState() {
   }
 }
 
-export async function updateTrip(formData: Record<string, any>) {
+export async function updateSchedule(formData: Record<string, any>) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     throw new Error("Not authenticated");
@@ -38,7 +37,7 @@ export async function updateTrip(formData: Record<string, any>) {
   formData["id"] = session.user.id;
 
   const response = await fetch(
-    `${backendUrl}/update_trip?user_id=${session.user.id}`,
+    `${backendUrl}/update_schedule?user_id=${session.user.id}`,
     {
       method: "POST",
       headers: {

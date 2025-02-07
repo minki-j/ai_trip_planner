@@ -60,30 +60,6 @@ export const authOptions: NextAuthOptions = {
             return false;
           }
           return true;
-          
-          // await connectDB();
-          // const db = client.db();
-
-          // // Check if user exists
-          // const existingUser = await db.collection('users').findOne({ email: user.email });
-
-          // if (!existingUser) {
-          //   try {
-          //     // Attempt to create new user
-          //     await db.collection('users').insertOne({
-          //       name: user.name,
-          //       email: user.email,
-          //       image: user.image,
-          //       googleId: user.id,
-          //       createdAt: new Date(),
-          //     });              
-          //   } catch (dbError) {
-          //     console.error("Failed to create user in database:", dbError);
-          //     return false;
-          //   }
-          // }
-
-          return true;
         } catch (error) {
           console.error("Error during sign in:", error);
           return false;

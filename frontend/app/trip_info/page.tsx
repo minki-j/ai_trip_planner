@@ -1,11 +1,10 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { client } from "@/lib/mongodb";
+
 import { TripForm } from "./trip-form";
 import { User } from "@/models/User";
-import { getUserInfo } from "./actions";
-
+import { getGraphState } from "./actions";
 
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
@@ -14,7 +13,7 @@ export default async function ProfilePage() {
     redirect("/");
   }
 
-  const state = await getUserInfo();
+  const state = await getGraphState();
 
   if (!state) {
     return (
