@@ -22,7 +22,6 @@ export async function getGraphState() {
       throw new Error("Network response was not ok");
     }
     const state = await response.json();
-    // console.log("state: ", state);
     return state;
   } catch (error) {
     console.error(error);

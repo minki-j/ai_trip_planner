@@ -40,7 +40,7 @@ export default function Home() {
   const connectWebSocket = () => {
     let websocket: WebSocket;
     try {
-      const wsUrl = returnWebSockerURL(session, "chat");
+      const wsUrl = returnWebSockerURL("chat");
       websocket = new WebSocket(wsUrl.toString());
 
       websocket.onerror = (error) => {
@@ -68,7 +68,7 @@ export default function Home() {
   const assignOnMessageHanlder = async (websocket: WebSocket) => {
     websocket.onmessage = async (event) => {
       const response = JSON.parse(event.data);
-      console.log("WebSocket response: ", response);
+      // console.log("WebSocket response: ", response);
       if (!response) return;
       if (response.error) {
         console.error("Error:", response.error);

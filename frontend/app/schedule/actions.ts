@@ -3,7 +3,6 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
-
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export async function getGraphState() {
@@ -52,3 +51,4 @@ export async function updateSchedule(formData: Record<string, any>) {
     return true;
   }
 }
+

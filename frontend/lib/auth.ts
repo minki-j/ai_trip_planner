@@ -54,7 +54,7 @@ export const authOptions: NextAuthOptions = {
               body: JSON.stringify(user),
             }
           )
-          console.log("add_user response: ", response);
+
           if (!response.ok) {
             console.error("Failed to add user");
             return false;

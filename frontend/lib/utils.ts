@@ -1,11 +1,9 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { Session } from "next-auth";
 
 export function returnWebSockerURL(
-  session: Session | null,
-  endpoint?: string
+  endpoint: string
 ): URL {
   if (!endpoint) {
     throw new Error("Endpoint is empty");
@@ -21,8 +19,7 @@ export function returnWebSockerURL(
   const wsUrl = new URL(`/ws/${endpoint}`, backendUrlObj.href);
 
   wsUrl.protocol = wsProtocol;
-  wsUrl.searchParams.set("user_id", session?.user?.id || "");
-
+  
   return wsUrl;
 };
 

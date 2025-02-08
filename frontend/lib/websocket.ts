@@ -1,9 +1,13 @@
 import { returnWebSockerURL } from "@/lib/utils";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
-const connectWebSocket = () => {
+
+export const connectWebSocket = async () => {
   let websocket: WebSocket;
   try {
-    const wsUrl = returnWebSockerURL(null, "generate_schedule");
+    const session = await getServerSession(authOptions);
+    const wsUrl = returnWebSockerURL(session, "generate_schedule");
     websocket = new WebSocket(wsUrl.toString());
 
     websocket.onerror = (error) => {
@@ -28,82 +32,3 @@ const connectWebSocket = () => {
   return websocket;
 };
 
-const assignOnMessageHanlder = async (websocket: WebSocket) => {
-  websocket.onmessage = async (event) => {
-    const response = JSON.parse(event.data);
-    console.log("WebSocket response: ", response);
-    if (!response) return;
-    if (response.error) {
-      console.error("Error:", response.error);
-    //   toast({
-    //     title: "Error",
-    //     description: response.error,
-    //     variant: "destructive",
-    //     duration: 4000,
-    //   });
-      return;
-    }
-
-    // setMessages((prevMessages) => [
-    //   ...prevMessages,
-    //   {
-    //     message: response.message,
-    //     sender: response.role,
-    //     sentTime: new Date().toISOString(),
-    //   },
-    // ]);
-  };
-};
-
-export const onSendMessage = async (message: Message) => {
-//   if (message) {
-//     setMessages((prevMessages) => [
-//       ...prevMessages,
-//       {
-//         message: message.message,
-//         sentTime: new Date().toISOString(),
-//         sender: Role.User,
-//       },
-//     ]);
-//   }
-
-  const websocket = connectWebSocket();
-  if (!websocket) {
-    return;
-  }
-
-  try {
-    await Promise.race([
-      new Promise((resolve, reject) => {
-        websocket.onopen = resolve;
-        websocket.onerror = reject;
-      }),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("WebSocket Connection timeout")),
-          5000
-        )
-      ),
-    ]);
-
-    assignOnMessageHanlder(websocket);
-
-    websocket.send(
-      JSON.stringify({
-        input: message.message,
-      })
-    );
-  } catch (error: any) {
-    if (websocket.readyState !== WebSocket.CLOSED) {
-      websocket.close();
-    }
-    // toast({
-    //   title: "Error",
-    //   description: `${
-    //     error.message ? error.message : "Sorry something went wrong"
-    //   }`,
-    //   variant: "destructive",
-    //   duration: 4000,
-    // });
-  }
-};

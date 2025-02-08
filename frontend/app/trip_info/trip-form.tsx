@@ -136,13 +136,13 @@ export function TripForm({ user }: { user: User }) {
             <SelectValue placeholder="Select a trip theme" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="cultural">Cultural & Heritage</SelectItem>
-            <SelectItem value="adventure">Adventure & Outdoor</SelectItem>
-            <SelectItem value="relaxation">Relaxation & Wellness</SelectItem>
-            <SelectItem value="culinary">Culinary & Food</SelectItem>
-            <SelectItem value="urban">Urban Exploration</SelectItem>
-            <SelectItem value="nature">Nature & Wildlife</SelectItem>
-            <SelectItem value="luxury">Luxury & Premium</SelectItem>
+            <SelectItem value="Cultural & Heritage">Cultural & Heritage</SelectItem>
+            <SelectItem value="Adventure & Outdoor">Adventure & Outdoor</SelectItem>
+            <SelectItem value="Relaxation & Wellness">Relaxation & Wellness</SelectItem>
+            <SelectItem value="Culinary & Food">Culinary & Food</SelectItem>
+            <SelectItem value="Urban Exploration">Urban Exploration</SelectItem>
+            <SelectItem value="Nature & Wildlife">Nature & Wildlife</SelectItem>
+            <SelectItem value="Luxury & Premium">Luxury & Premium</SelectItem>
           </SelectContent>
         </Select>
       </div>
