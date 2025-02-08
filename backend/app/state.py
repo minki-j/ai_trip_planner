@@ -8,6 +8,8 @@ from app.models import Stage
 #                REDUCER FUNCTIONS
 # ===========================================
 def extend_list(original: list, new: list):
+    if len(new) == 1 and new[0] == "RESET_EXTEND_LIST":
+        return []
     original.extend(new)
     return original
 
@@ -19,13 +21,9 @@ def update_str(_, new: str):
 # ===========================================
 #                    STATE
 # ===========================================
-class OutputState(BaseModel):
-    messages: Annotated[list, extend_list] = Field(default_factory=list)
-
-
 class InputState(BaseModel):
     input: str = Field(default=None)
-    
+
     user_id: str = Field(default=None)
     user_name: str = Field(default=None)
     user_email: str = Field(default=None)
@@ -53,16 +51,16 @@ class InputState(BaseModel):
     trip_free_hours: int = Field(default=None)
 
 
+class OutputState(BaseModel):
+    pass
+
+
 class OverallState(InputState, OutputState):
     stage: Stage = Stage.FIRST_GENERATION
-    how_many_schedules: int = Field(default=10, description="The total number of events or places that the user would visit. This number is calculated based on the free time of the user")
     previous_state_before_update: str = Field(default=None)
 
-    # queries_for_internet_search: list[str] = Field(default_factory=list)
     internet_search_results: Annotated[list[dict], extend_list] = Field(
         default_factory=list
     )
 
-
     activities: Annotated[list[dict], extend_list] = Field(default_factory=list)
-    reasoning_steps: Annotated[list[dict], extend_list] = Field(default_factory=list)

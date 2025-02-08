@@ -14,10 +14,14 @@ from app.state import OverallState
 from app.llm import perplexity_chat_model
 
 
-
 def internet_search(state: dict, writer: StreamWriter):
     print("\n>>> NODE: internet_search")
 
+    # return {"internet_search_results": [{
+    #     "title": "dummpy title",
+    #     "description": "dummpy description"
+    # }]}
+    
     writer(
         {
             "title": f"Searching the web for {state['query']}",
@@ -88,7 +92,7 @@ Keep in mind the user's trip information, and sort the results in a way that the
 
     writer(
         {
-            "title": f"Internet search result for {state['query']}",
+            "title": f"Finished searching the web for {state['query']}",
             "description": response,
         }
     )

@@ -11,6 +11,7 @@ import ScheduleForm from "./schedule-form";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { returnWebSockerURL } from "@/lib/utils";
+import { resetAgentStateAction } from "./actions";
 
 interface Activity {
   activity_id: string;
@@ -125,6 +126,12 @@ export default function ProfilePageClient({
     }
   };
 
+  const resetAgentState = () => {
+    resetAgentStateAction();
+    setActivities([]);
+    setReasoningSteps([]);
+  };
+
   // setActivities([
   //     {
   //       activity_id: "1",
@@ -162,7 +169,24 @@ export default function ProfilePageClient({
                   className="flex flex-col items-start justify-start space-y-1"
                 >
                   <p className="text-s font-bold">{step.title}</p>
-                  <ReactMarkdown className="text-xs prose prose-sm max-w-none prose-neutral dark:prose-invert">{step.description}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      p: ({ node, children }) => (
+                        <p className="my-2">{children}</p>
+                      ),
+                      ul: ({ node, children }) => (
+                        <ul className="list-disc pl-4 space-y-1">{children}</ul>
+                      ),
+                      ol: ({ node, children }) => (
+                        <ol className="list-decimal pl-4 space-y-1">
+                          {children}
+                        </ol>
+                      ),
+                    }}
+                    className="text-xs prose prose-sm max-w-none prose-neutral dark:prose-invert"
+                  >
+                    {step.description}
+                  </ReactMarkdown>
                 </div>
               ))}
             </div>
@@ -170,6 +194,7 @@ export default function ProfilePageClient({
             <div className="flex flex-col items-center justify-center space-y-4 ">
               <p>No activities to display</p>
               <Button onClick={startGeneration}>Start Generation</Button>
+              <Button onClick={resetAgentState}>Reset Agent State</Button>
             </div>
           )}
         </>

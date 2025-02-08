@@ -52,3 +52,25 @@ export async function updateSchedule(formData: Record<string, any>) {
   }
 }
 
+export async function resetAgentStateAction() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const response = await fetch(
+    `${backendUrl}/reset_state?user_id=${session.user.id}`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+  if (!response.ok) {
+    throw new Error("Network response was not ok");
+  } else {
+    return true;
+  }
+}
+

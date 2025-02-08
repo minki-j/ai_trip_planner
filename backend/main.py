@@ -11,7 +11,7 @@ from typing import Optional
 
 from app.utils.compile_graph import compile_graph_with_async_checkpointer
 
-# from app.models import
+from app.models import Stage
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -136,6 +136,31 @@ async def update_schedule(
     )
 
 
+@app.delete("/reset_state")
+async def reset_state(user: dict = Depends(get_current_user_http)):
+    compiled_entry_graph = await compile_graph_with_async_checkpointer(
+        entry_graph, "entry"
+    )
+    config = {"configurable": {"thread_id": user["id"]}}
+
+    # update the state with form data
+    await compiled_entry_graph.aupdate_state(
+        config,
+        {
+            "stage": Stage.FIRST_GENERATION,
+            "previous_state_before_update": "",
+            "messages": ["RESET_EXTEND_LIST"],
+            "internet_search_results": ["RESET_EXTEND_LIST"],
+            "activities": ["RESET_EXTEND_LIST"],
+        },
+    )
+
+    return JSONResponse(
+        status_code=200,
+        content={"status": "success", "message": "State reset successfully"},
+    )
+
+
 @app.get("/graph_state")
 async def get_graph_state(user: dict = Depends(get_current_user_http)):
 
@@ -169,10 +194,8 @@ async def generate_schedule_ws(websocket: WebSocket):
         workflow = await compile_graph_with_async_checkpointer(entry_graph, "entry")
 
         async for stream_mode, data in workflow.astream(
-            {
-                "input": "!! This message is just to avoid empty graph invocation. "
-            },
-            stream_mode=["custom", "updates"],
+            {"input": "!! This message is just to avoid empty graph invocation."},
+            stream_mode=["custom"],
             config={"configurable": {"thread_id": user["id"]}},
         ):
             if stream_mode == "custom":
