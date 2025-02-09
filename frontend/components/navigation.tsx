@@ -18,11 +18,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { resetAgentStateAction } from "../app/schedule/actions";
 
 export function Navigation() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { setTheme, theme } = useTheme();
+
+  const resetAgentState = () => {
+    resetAgentStateAction();
+  };
 
   const links = [
     { href: "/schedule", label: "Schedule", icon: Clock, requiresAuth: true },
@@ -110,6 +115,12 @@ export function Navigation() {
                     className="cursor-pointer"
                   >
                     Sign Out
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => resetAgentState()}
+                    className="cursor-pointer"
+                  >
+                    Reset Agent State
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

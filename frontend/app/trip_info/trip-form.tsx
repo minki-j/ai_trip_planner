@@ -117,14 +117,20 @@ export function TripForm({ user }: { user: User }) {
         <Label htmlFor="trip_budget" className="block text-sm font-medium">
           Budget
         </Label>
-        <Input
-          type="text"
-          id="trip_budget"
+        <Select
           name="trip_budget"
-          defaultValue={user.trip_budget ?? ""}
-          placeholder="Enter your budget"
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
-        />
+          defaultValue={user.trip_budget ?? "moderate"}
+          required
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a trip budget" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="budget friendly">Budget-Friendly</SelectItem>
+            <SelectItem value="moderate">Moderate</SelectItem>
+            <SelectItem value="luxury">Luxury</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">

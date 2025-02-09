@@ -3,6 +3,7 @@ from pymongo import AsyncMongoClient
 from langgraph.checkpoint.mongodb.aio import AsyncMongoDBSaver
 
 async def compile_graph_with_async_checkpointer(graph, graph_name):
+    # This function must be async for AsyncMongoClient
     mongodb_client = AsyncMongoClient(os.getenv("MONGODB_URI_LANGGRAPH_CHECKPOINTER"))
     checkpointer = AsyncMongoDBSaver(mongodb_client)
 

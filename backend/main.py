@@ -149,9 +149,10 @@ async def reset_state(user: dict = Depends(get_current_user_http)):
         {
             "stage": Stage.FIRST_GENERATION,
             "previous_state_before_update": "",
-            "messages": ["RESET_EXTEND_LIST"],
-            "internet_search_results": ["RESET_EXTEND_LIST"],
-            "activities": ["RESET_EXTEND_LIST"],
+            "messages": ["RESET_LIST"],
+            "internet_search_results": ["RESET_LIST"],
+            "activities": ["RESET_LIST"],
+            "schedule": ["RESET_LIST"],
         },
     )
 

@@ -21,20 +21,13 @@ def internet_search(state: dict, writer: StreamWriter):
     #     "title": "dummpy title",
     #     "description": "dummpy description"
     # }]}
-    
-    writer(
-        {
-            "title": f"Searching the web for {state['query']}",
-            "description": "It might take some time...",
-        }
-    )
 
     response = (
         ChatPromptTemplate.from_template(
             """
 You are an AI tour planner doing some research for the user.
 
-The user will be visiting {trip_location} (staying at {trip_accomodation_location}). The budget is {trip_budget} and the user wants the trip to be a theme of {trip_theme}. The user's interests are {user_interests}. 
+The user will be visiting {trip_location} (staying at {trip_accomodation_location}). The user wants the trip to be {trip_budget} and a theme of {trip_theme}. The user's interests are {user_interests}. 
 
 - The user's arrival details:
   Date: {trip_arrival_date}
@@ -62,14 +55,21 @@ The user will be visiting {trip_location} (staying at {trip_accomodation_locatio
 Now, collect information about the following query: 
 {query}
 
-Keep in mind the user's trip information, and sort the results in a way that the most relevant information is at the top.
+
+---
+
+## Important Rules
+- Keep in mind the user's trip information, and sort the results in a way that the most relevant information is at the top.
+- You don't need to plan the full schedule, just collect information about the query.
+- Make sure only include information that is available from {trip_arrival_date} {trip_arrival_time} to {trip_departure_date} {trip_departure_time}.
+-
 """
         )
         | perplexity_chat_model
         | StrOutputParser()
     ).invoke(
         {
-            "user_interests": state["user_interests"],
+            "user_interests": ", ".join(state["user_interests"]),
             "user_extra_info": state["user_extra_info"],
             "trip_arrival_date": state["trip_arrival_date"],
             "trip_arrival_time": state["trip_arrival_time"],
@@ -92,7 +92,7 @@ Keep in mind the user's trip information, and sort the results in a way that the
 
     writer(
         {
-            "title": f"Finished searching the web for {state['query']}",
+            "title": f"{state['query']}",
             "description": response,
         }
     )

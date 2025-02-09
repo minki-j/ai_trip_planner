@@ -2,19 +2,65 @@ from pydantic import BaseModel, Field
 from typing import Annotated, Any
 from langchain_core.messages import AIMessage
 from app.models import Stage
+from enum import Enum
+import datetime
+
+# ===========================================
+#                VARIABLE SCHEMA
+# ===========================================
+
+class ScheduleItemType(str, Enum):
+    TERMINAL = "terminal"
+    TRANSPORT = "transport"
+    WALK = "walk"
+    EVENT = "event"
+    MUSEUM_GALLERY = "museum_gallery"
+    STREETS = "streets"
+    HISTORICAL_SITE = "historical_site"
+    REMOVE = "remove"
+    OTHER = "other"
+
+class TimeSlot(BaseModel):
+    start_time: datetime.datetime
+    end_time: datetime.datetime
+
+class ScheduleItem(BaseModel):
+    id: int
+    type: ScheduleItemType
+    time: TimeSlot
+    location: str
+    title: str
+    description: str
 
 
 # ===========================================
 #                REDUCER FUNCTIONS
 # ===========================================
 def extend_list(original: list, new: list):
-    if len(new) == 1 and new[0] == "RESET_EXTEND_LIST":
+    if len(new) == 1 and new[0] == "RESET_LIST":
         return []
     original.extend(new)
     return original
 
 
-def update_str(_, new: str):
+def insert_schedule(original: list[ScheduleItem], new: list[ScheduleItem]):
+    if len(new) == 1 and new[0] == "RESET_LIST":
+        return []
+    if len(new) > 0:
+        for new_item in new:
+            id = new_item.id
+            for original_item in original:
+                if original_item.id == id:
+                    if original_item.type == ScheduleItemType.REMOVE:
+                        original.remove(original_item)
+                    else:
+                        original_item = new_item
+                    break
+            original.append(new_item)
+    return original
+
+
+def replace(_, new: Any):
     return new
 
 
@@ -51,11 +97,7 @@ class InputState(BaseModel):
     trip_free_hours: int = Field(default=None)
 
 
-class OutputState(BaseModel):
-    pass
-
-
-class OverallState(InputState, OutputState):
+class OverallState(InputState):
     stage: Stage = Stage.FIRST_GENERATION
     previous_state_before_update: str = Field(default=None)
 
@@ -64,3 +106,7 @@ class OverallState(InputState, OutputState):
     )
 
     activities: Annotated[list[dict], extend_list] = Field(default_factory=list)
+
+    schedule: Annotated[list[ScheduleItem], insert_schedule] = Field(
+        default_factory=list
+    )

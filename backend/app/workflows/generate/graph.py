@@ -1,4 +1,5 @@
 import json
+import datetime
 from typing import TypedDict
 from varname import nameof as n
 from enum import Enum
@@ -14,7 +15,13 @@ from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, AIM
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 
 
-from app.state import OverallState, extend_list
+from app.state import (
+    OverallState,
+    extend_list,
+    ScheduleItem,
+    ScheduleItemType,
+    TimeSlot,
+)
 from app.llm import chat_model
 
 from app.models import Role
@@ -65,6 +72,50 @@ Before returning the result, think out loud on how you calculate the number of f
 
     return {
         "trip_free_hours": response.free_hours,
+    }
+
+
+def add_terminal_time_to_schedule(state: OverallState):
+    print("\n>>> NODE: add_terminal_time_to_schedule")
+
+    prompt = f"""Convert this into datetime input format [year, month, day, hour, minute].
+    Arrival info: {state.trip_arrival_date} {state.trip_arrival_time}
+    Departure info: {state.trip_departure_date} {state.trip_departure_time}"""
+
+    class TimeConvertOutput(BaseModel):
+        arrival_time: list[int]
+        departure_time: list[int]
+
+    response = chat_model.with_structured_output(TimeConvertOutput).invoke(prompt)
+
+    arrival_time = datetime.datetime(*response.arrival_time)
+    departure_time = datetime.datetime(*response.departure_time)
+
+    return {
+        "schedule": [
+            ScheduleItem(
+                id=1,
+                type=ScheduleItemType.TERMINAL,
+                time=TimeSlot(
+                    start_time=arrival_time,
+                    end_time=None,
+                ),
+                location="29 Broadway",
+                title=f"Arrive to {state.trip_arrival_terminal}",
+                description=None,
+            ),
+            ScheduleItem(
+                id=2,
+                type=ScheduleItemType.TERMINAL,
+                time=TimeSlot(
+                    start_time=departure_time,
+                    end_time=None,
+                ),
+                location="231 Broadway",
+                title=f"Departure at {state.trip_departure_terminal}",
+                description=None,
+            )
+        ]
     }
 
 
@@ -152,27 +203,9 @@ async def generate_queries(state: LoopState, writer: StreamWriter):
 
     writer(
         {
-            "title": "Agent: Generate Queries",
             "description": "Reading your trip info and thinking what to look up on the internet",
         }
     )
-
-    # return {
-    #     "queries": [
-    #         Query(
-    #             rationale="The user is visiting New York City with a Cultural & Heritage theme trip and is interested in Jazz. I should look up iconic Jazz clubs in New York City that match the user's interests and fit within the budget.",
-    #             query="Famous Jazz clubs in New York City within a budget of $300",
-    #         ),
-    #         Query(
-    #             rationale="The user wants a Cultural & Heritage theme trip in New York City. I should look up museums or cultural institutions that focus on New York's heritage and history.",
-    #             query="Cultural and heritage museums in New York City",
-    #         ),
-    #         Query(
-    #             rationale="The user is interested in Jazz and visiting New York City. I should look up any Jazz-related events or festivals happening during the user's stay in February 2025.",
-    #             query="Jazz events or festivals in New York City during February 18-21, 2025",
-    #         ),
-    #     ]
-    # }
 
     class Queries(BaseModel):
         queries: list[Query]
@@ -197,7 +230,7 @@ async def generate_queries(state: LoopState, writer: StreamWriter):
 
     writer(
         {
-            "title": "Agent: Generate Queries",
+            "title": "Queries to look up on the internet",
             "description": "\n".join([f"- {q.query}" for q in response.queries]),
         }
     )
@@ -250,8 +283,11 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
         queries = state.queries
         for action in response.actions:
             if action.type == ActionsType.ADD:
-                # Find the highest ID to assign next ID
-                next_id = max([q.id for q in queries], default=0) + 1
+                if len(queries) == 0:
+                    next_id = 1
+                else:
+                    # Find the highest ID to assign next ID
+                    next_id = max([q.id for q in queries], default=0) + 1
                 new_query = Query(
                     id=next_id,
                     rationale=action.rationale,
@@ -267,6 +303,19 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
                     if query.id == action.query_id:
                         query.query = action.new_query_value
                         break
+
+        writer(
+            {
+                "title": "Validation result",
+                "description": "\n".join(
+                    [
+                        f"- **Action:** {action.type.value} // **Rationale:** {action.rationale} // **New query:** {action.new_query_value}"
+                        for action in response.actions
+                        if action.type != ActionsType.SKIP
+                    ]
+                ),
+            }
+        )
 
         writer(
             {
@@ -293,17 +342,14 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
         )
 
 
-def continue_loop_state(state: LoopState):
-    # Need this function to ensure LoopState is passed to the next node
-    # Otherwise, you'll get an error like "message_list is not in OverallState"
-    return {}
-
-
 g = StateGraph(OverallState)
 g.add_edge(START, n(calculate_how_many_schedules))
 
 g.add_node(n(calculate_how_many_schedules), calculate_how_many_schedules)
-g.add_edge(n(calculate_how_many_schedules), n(init_generate_queries_validation_loop))
+g.add_edge(n(calculate_how_many_schedules), n(add_terminal_time_to_schedule))
+
+g.add_node(n(add_terminal_time_to_schedule), add_terminal_time_to_schedule)
+g.add_edge(n(add_terminal_time_to_schedule), n(init_generate_queries_validation_loop))
 
 g.add_node(
     n(init_generate_queries_validation_loop), init_generate_queries_validation_loop

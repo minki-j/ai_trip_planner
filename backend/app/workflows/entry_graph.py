@@ -21,9 +21,10 @@ from app.utils.compile_graph import compile_graph_with_async_checkpointer
 
 async def init_generate_schedule():
     global generate_schedule
-    generate_schedule = await compile_graph_with_async_checkpointer(generate_schedule, "assist")
+    generate_schedule = await compile_graph_with_async_checkpointer(
+        generate_schedule, "generate_schedule"
+    )
 asyncio.run(init_generate_schedule())
-
 
 def stage_router(state: OverallState):
     print("\n>>> NODE: stage_router")
