@@ -174,6 +174,7 @@ async def get_graph_state(user: dict = Depends(get_current_user_http)):
     config = {"configurable": {"thread_id": user["id"]}}
     state = await compiled_entry_graph.aget_state(config, subgraphs=True)
     state = state.values
+    print(f"\n\n>>> GRAPH STATE:\n{state}\n\n")
 
     if not state:
         return None
@@ -197,7 +198,7 @@ async def generate_schedule_ws(websocket: WebSocket):
         async for stream_mode, data in workflow.astream(
             {"input": "!! This message is just to avoid empty graph invocation."},
             stream_mode=["custom"],
-            config={"configurable": {"thread_id": user["id"]}},
+            config={"recursion_limit": 50, "configurable": {"thread_id": user["id"]}},
         ):
             if stream_mode == "custom":
                 await websocket.send_json(data)

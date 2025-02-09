@@ -18,16 +18,17 @@ def internet_search(state: dict, writer: StreamWriter):
     print("\n>>> NODE: internet_search")
 
     # return {"internet_search_results": [{
-    #     "title": "dummpy title",
-    #     "description": "dummpy description"
+    #     "query": "dummpy title",
+    #     "query_result": "dummpy description"
     # }]}
 
+    #! Excluded trip_theme, user_interests, and extra_info since it distracts from the task
     response = (
         ChatPromptTemplate.from_template(
             """
 You are an AI tour planner doing some research for the user.
 
-The user will be visiting {trip_location} (staying at {trip_accomodation_location}). The user wants the trip to be {trip_budget} and a theme of {trip_theme}. The user's interests are {user_interests}. 
+The user will be visiting {trip_location} (staying at {trip_accomodation_location}). The user wants the trip to be {trip_budget}.
 
 - The user's arrival details:
   Date: {trip_arrival_date}
@@ -45,10 +46,6 @@ The user will be visiting {trip_location} (staying at {trip_accomodation_locatio
 
 - There are fixed schedules that the user has to follow:
 {trip_fixed_schedules}
-
-- Extra information about the user:
-{user_extra_info}
-
 
 ---
 
@@ -69,8 +66,8 @@ Now, collect information about the following query:
         | StrOutputParser()
     ).invoke(
         {
-            "user_interests": ", ".join(state["user_interests"]),
-            "user_extra_info": state["user_extra_info"],
+            # "user_interests": ", ".join(state["user_interests"]),
+            # "user_extra_info": state["user_extra_info"],
             "trip_arrival_date": state["trip_arrival_date"],
             "trip_arrival_time": state["trip_arrival_time"],
             "trip_arrival_terminal": state["trip_arrival_terminal"],
@@ -82,13 +79,11 @@ Now, collect information about the following query:
             "trip_location": state["trip_location"],
             "trip_accomodation_location": state["trip_accomodation_location"],
             "trip_budget": state["trip_budget"],
-            "trip_theme": state["trip_theme"],
+            # "trip_theme": state["trip_theme"],
             "trip_fixed_schedules": state["trip_fixed_schedules"],
             "query": state["query"],
         }
     )
-
-    print("internet_search result: ", response)
 
     writer(
         {

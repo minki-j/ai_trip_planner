@@ -1,6 +1,7 @@
+from langgraph.graph import add_messages
 from pydantic import BaseModel, Field
 from typing import Annotated, Any
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AnyMessage
 from app.models import Stage
 from enum import Enum
 import datetime
@@ -22,7 +23,7 @@ class ScheduleItemType(str, Enum):
 
 class TimeSlot(BaseModel):
     start_time: datetime.datetime
-    end_time: datetime.datetime
+    end_time: datetime.datetime | None
 
 class ScheduleItem(BaseModel):
     id: int
@@ -30,7 +31,7 @@ class ScheduleItem(BaseModel):
     time: TimeSlot
     location: str
     title: str
-    description: str
+    description: str | None
 
 
 # ===========================================
@@ -110,3 +111,5 @@ class OverallState(InputState):
     schedule: Annotated[list[ScheduleItem], insert_schedule] = Field(
         default_factory=list
     )
+
+    slot_in_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { redirect } from "next/navigation";
 
 import { format } from "date-fns";
@@ -23,10 +24,15 @@ import { updateTrip } from "./actions";
 
 import { User } from "@/models/User";
 
-
 export function TripForm({ user }: { user: User }) {
   const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  const [fixedSchedules, setFixedSchedules] = useState<string[]>(
+    user.trip_fixed_schedules || []
+  );
   const [arrivalDate, setArrivalDate] = useState<Date | undefined>(
     user.trip_arrival_date ? new Date(user.trip_arrival_date) : undefined
   );
@@ -43,6 +49,7 @@ export function TripForm({ user }: { user: User }) {
   }, [user.user_extra_info]);
 
   async function clientAction(formData: FormData) {
+    setHasUnsavedChanges(false);
     const formDataObject = Object.fromEntries(formData.entries());
 
     formDataObject["trip_arrival_date"] = arrivalDate
@@ -51,7 +58,7 @@ export function TripForm({ user }: { user: User }) {
     formDataObject["trip_departure_date"] = departureDate
       ? format(departureDate, "yyyy-MM-dd")
       : "";
-    
+
     const success = await updateTrip(formDataObject);
 
     if (success) {
@@ -68,9 +75,60 @@ export function TripForm({ user }: { user: User }) {
       });
     }
   }
+  
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [hasUnsavedChanges]);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a');
+      
+      if (!anchor) return;
+      
+      const href = anchor.getAttribute('href');
+      if (href && href !== pathname) {
+        if (hasUnsavedChanges) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          const confirmed = window.confirm(
+            "You have unsaved changes. Are you sure you want to leave?"
+          );
+          
+          if (confirmed) {
+            router.push(href);
+          }
+        }
+      }
+    };
+
+    document.addEventListener('click', handleClick, true);
+    return () => document.removeEventListener('click', handleClick, true);
+  }, [hasUnsavedChanges, pathname, router]);
+
+  const handleInputChange = () => {    
+    setHasUnsavedChanges(true);
+  };
 
   return (
-    <form action={clientAction} className="space-y-6">
+    <form
+      action={clientAction}
+      className="space-y-6"
+      onChange={handleInputChange}
+    >
       <div className="space-y-2">
         <Label htmlFor="user_name" className="block text-sm font-medium">
           Name
@@ -142,9 +200,15 @@ export function TripForm({ user }: { user: User }) {
             <SelectValue placeholder="Select a trip theme" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Cultural & Heritage">Cultural & Heritage</SelectItem>
-            <SelectItem value="Adventure & Outdoor">Adventure & Outdoor</SelectItem>
-            <SelectItem value="Relaxation & Wellness">Relaxation & Wellness</SelectItem>
+            <SelectItem value="Cultural & Heritage">
+              Cultural & Heritage
+            </SelectItem>
+            <SelectItem value="Adventure & Outdoor">
+              Adventure & Outdoor
+            </SelectItem>
+            <SelectItem value="Relaxation & Wellness">
+              Relaxation & Wellness
+            </SelectItem>
             <SelectItem value="Culinary & Food">Culinary & Food</SelectItem>
             <SelectItem value="Urban Exploration">Urban Exploration</SelectItem>
             <SelectItem value="Nature & Wildlife">Nature & Wildlife</SelectItem>
@@ -266,7 +330,10 @@ export function TripForm({ user }: { user: User }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="trip_end_of_day_at" className="block text-sm font-medium">
+        <Label
+          htmlFor="trip_end_of_day_at"
+          className="block text-sm font-medium"
+        >
           End of Day
         </Label>
         <Input
@@ -286,14 +353,73 @@ export function TripForm({ user }: { user: User }) {
         >
           Fixed Schedules
         </Label>
-        <Textarea
-          id="trip_fixed_schedules"
-          name="trip_fixed_schedules"
-          defaultValue={user.trip_fixed_schedules?.join("\n") ?? ""}
-          rows={4}
-          placeholder="Enter fixed schedules (one per line)"
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
-        />
+        <div className="space-y-2">
+          <div className="space-y-2">
+            {fixedSchedules.map((schedule, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-2 border p-2 rounded-md"
+              >
+                <span className="flex-1 text-sm">{schedule}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const newSchedules = fixedSchedules.filter(
+                      (_, i) => i !== index
+                    );
+                    const hiddenInput = document.getElementById(
+                      "trip_fixed_schedules"
+                    ) as HTMLInputElement;
+                    hiddenInput.value = newSchedules.join("\n");
+                    setFixedSchedules((prev) => prev.concat(newSchedules));
+                  }}
+                >
+                  ✕
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              id="schedule_input"
+              placeholder="e.g. Feb/22 7AM-12PM, Meeting with client"
+              className="flex-1"
+            />
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                const input = document.getElementById(
+                  "schedule_input"
+                ) as HTMLInputElement;
+                const hiddenInput = document.getElementById(
+                  "trip_fixed_schedules"
+                ) as HTMLInputElement;
+                if (input.value.trim()) {
+                  const currentSchedules =
+                    hiddenInput?.value.split("\n").filter(Boolean) || [];
+                  const newSchedules = [
+                    ...currentSchedules,
+                    input.value.trim(),
+                  ];
+                  hiddenInput.value = newSchedules.join("\n");
+                  input.value = "";
+                  setFixedSchedules((prev) => prev.concat(newSchedules));
+                }
+              }}
+            >
+              Add
+            </Button>
+          </div>
+          <input
+            type="hidden"
+            id="trip_fixed_schedules"
+            name="trip_fixed_schedules"
+            value={user.trip_fixed_schedules?.join("\n") ?? ""}
+          />
+        </div>
       </div>
 
       <div className="space-y-2">

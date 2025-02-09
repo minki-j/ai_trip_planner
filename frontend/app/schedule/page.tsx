@@ -8,37 +8,39 @@ import { useSession } from "next-auth/react";
 
 import ScheduleForm from "./schedule-form";
 import ScheduleDisplay from "./schedule-display";
+import Loading from "./loading";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { returnWebSockerURL } from "@/lib/utils";
-import { resetAgentStateAction } from "./actions";
 
 import { ScheduleItem } from "@/models/Schedule";
 
 import { getGraphState } from "./actions";
+
+import { RefreshCw, Edit } from "lucide-react";
 
 interface ReasoningStep {
   title: string;
   description: string;
 }
 
-interface ProfilePageClientProps {
-  initialActivities: any;
-}
-export default function ProfilePageClient() {
+export default function SchedulePage() {
   const { data: session, status } = useSession();
   const [activities, setActivities] = useState<ScheduleItem[]>([]);
   const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [showReasoningSteps, setShowReasoningSteps] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchInitialActivities = async () => {
-      const initialActivities = await getGraphState();
-      setActivities(initialActivities);
+      const state = await getGraphState();
+      setActivities(state.schedule);
     };
 
     fetchInitialActivities();
+    setIsLoading(false);
   }, []);
 
   const { toast } = useToast();
@@ -127,71 +129,130 @@ export default function ProfilePageClient() {
     }
   };
 
-  const resetAgentState = () => {
-    resetAgentStateAction();
-    setActivities([]);
-    setReasoningSteps([]);
-  };
+  if (isLoading) {
+    return <Loading />;
+  }
 
   return (
-    <div className="container mx-auto py-8 max-w-2xl px-4">
-      {activities.length > 0 ? (
-        <div className="relative">
-          <button
-            onClick={() => setIsEditMode(!isEditMode)}
-            className="fixed top-20 right-4 w-12 h-10 bg-primary hover:bg-primary/90 text-white rounded-full flex items-center justify-center shadow-lg z-50 transition-all duration-200 hover:scale-105"
-            aria-label={
-              isEditMode ? "Switch to display mode" : "Switch to edit mode"
-            }
-          >
-            {isEditMode ? "Display Mode" : "Edit Mode"}
-          </button>
-          {isEditMode ? (
-            <ScheduleForm initialActivities={activities} />
-          ) : (
-            <ScheduleDisplay activities={activities} />
-          )}
-        </div>
+    <>
+      {/* Show/Hide reasoning steps button */}
+      {reasoningSteps.length > 0 ? (
+        <button
+          onClick={() => setShowReasoningSteps(!showReasoningSteps)}
+          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-100"
+          aria-label={
+            showReasoningSteps ? "Hide reasoning steps" : "Show reasoning steps"
+          }
+        >
+          <div className="flex items-center gap-2 text-sm">
+            <span>
+              {showReasoningSteps
+                ? "Hide reasoning steps"
+                : "Show reasoning steps"}
+            </span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className={`w-4 h-4 transition-transform ${
+                showReasoningSteps ? "transform rotate-180" : ""
+              }`}
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        </button>
       ) : (
-        <>
-          {reasoningSteps.length > 0 ? (
-            <div className="flex flex-col items-start justify-start space-y-4">
-              {reasoningSteps.map((step, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col items-start justify-start space-y-1"
+        <div className="w-full py-1 flex justify-center items-center text-white">
+          <span className="text-sm">No reasoning steps available</span>
+        </div>
+      )}
+
+      <div className="container mx-auto max-w-3xl px-4">
+        {/* Reasoning Steps */}
+        {reasoningSteps.length > 0 && showReasoningSteps && (
+          <div className="bg-card rounded-lg p-4 shadow-sm space-y-4">
+            <h2 className="text-lg font-semibold mb-4">Reasoning Steps</h2>
+            {reasoningSteps.map((step, index) => (
+              <div
+                key={index}
+                className="border-l-2 border-primary/20 pl-4 py-2"
+              >
+                <h3 className="text-sm font-medium text-primary mb-2">
+                  {step.title}
+                </h3>
+                <ReactMarkdown
+                  components={{
+                    p: ({ node, children }) => (
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {children}
+                      </p>
+                    ),
+                    ul: ({ node, children }) => (
+                      <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                        {children}
+                      </ul>
+                    ),
+                    ol: ({ node, children }) => (
+                      <ol className="list-decimal pl-4 space-y-1 text-sm text-muted-foreground">
+                        {children}
+                      </ol>
+                    ),
+                  }}
+                  className="prose prose-sm max-w-none prose-neutral dark:prose-invert"
                 >
-                  <p className="text-s font-bold">{step.title}</p>
-                  <ReactMarkdown
-                    components={{
-                      p: ({ node, children }) => (
-                        <p className="my-2">{children}</p>
-                      ),
-                      ul: ({ node, children }) => (
-                        <ul className="list-disc pl-4 space-y-1">{children}</ul>
-                      ),
-                      ol: ({ node, children }) => (
-                        <ol className="list-decimal pl-4 space-y-1">
-                          {children}
-                        </ol>
-                      ),
-                    }}
-                    className="text-xs prose prose-sm max-w-none prose-neutral dark:prose-invert"
-                  >
-                    {step.description}
-                  </ReactMarkdown>
-                </div>
-              ))}
+                  {step.description}
+                </ReactMarkdown>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Main content */}
+        <div className="space-y-6">
+          {activities.length > 0 ? (
+            <div className="bg-card rounded-lg pr-2">
+              {isEditMode ? (
+                <ScheduleForm initialActivities={activities} />
+              ) : (
+                <ScheduleDisplay activities={activities} />
+              )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center space-y-4 ">
-              <p>No activities to display</p>
-              <Button onClick={startGeneration}>Start Generation</Button>
-              <Button onClick={resetAgentState}>Reset Agent State</Button>
+            <div className="flex flex-col items-center justify-center py-12 bg-muted/50 rounded-lg">
+              <p className="text-muted-foreground">No activities to display</p>
             </div>
           )}
-        </>
-      )}
-    </div>
+
+          {/* Floating Buttons */}
+          <Button
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Are you sure you want to regenerate a new schedule?"
+                )
+              ) {
+                startGeneration();
+              }
+            }}
+            size="lg"
+            className="fixed bottom-3 right-3 rounded-full w-8 h-8 shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-primary text-primary-foreground"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={() => setIsEditMode(!isEditMode)}
+            size="lg"
+            className="fixed bottom-14 right-3 rounded-full w-8 h-8 shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-primary text-primary-foreground"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }

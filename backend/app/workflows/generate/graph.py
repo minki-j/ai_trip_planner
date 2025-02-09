@@ -11,7 +11,13 @@ from langgraph.types import StreamWriter, Command, Send
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import (
+    AnyMessage,
+    SystemMessage,
+    HumanMessage,
+    AIMessage,
+    RemoveMessage,
+)
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 
 
@@ -26,7 +32,9 @@ from app.llm import chat_model
 
 from app.models import Role
 
-from ..tools.internet_search import internet_search
+from app.workflows.tools.internet_search import internet_search
+
+from app.utils.utils import convert_schedule_item_to_string
 
 
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
@@ -37,7 +45,7 @@ def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
         think_out_loud: str = Field(description="Think out loud your calculation")
         free_hours: int
 
-    response = (
+    response: FreeHourResponse = (
         ChatPromptTemplate.from_template(
             """
 Calculate how many free hours I have when my trip schedule is like this. 
@@ -86,7 +94,9 @@ def add_terminal_time_to_schedule(state: OverallState):
         arrival_time: list[int]
         departure_time: list[int]
 
-    response = chat_model.with_structured_output(TimeConvertOutput).invoke(prompt)
+    response: TimeConvertOutput = chat_model.with_structured_output(
+        TimeConvertOutput
+    ).invoke(prompt)
 
     arrival_time = datetime.datetime(*response.arrival_time)
     departure_time = datetime.datetime(*response.departure_time)
@@ -114,7 +124,7 @@ def add_terminal_time_to_schedule(state: OverallState):
                 location="231 Broadway",
                 title=f"Departure at {state.trip_departure_terminal}",
                 description=None,
-            )
+            ),
         ]
     }
 
@@ -164,26 +174,11 @@ Query: Best beaches in Cuba to relax
 3.
 Rationale: The user is visiting Iceland and wants a Adventure & Sports theme trip. I should look up which volcano is the most active in Iceland.
 Query: Most active volcano in Iceland""".format(
-        user_name=state.user_name,
-        user_interests=state.user_interests,
-        user_extra_info=state.user_extra_info,
-        trip_arrival_date=state.trip_arrival_date,
-        trip_arrival_time=state.trip_arrival_time,
-        trip_arrival_terminal=state.trip_arrival_terminal,
-        trip_departure_date=state.trip_departure_date,
-        trip_departure_time=state.trip_departure_time,
-        trip_departure_terminal=state.trip_departure_terminal,
-        trip_start_of_day_at=state.trip_start_of_day_at,
-        trip_end_of_day_at=state.trip_end_of_day_at,
-        trip_location=state.trip_location,
-        trip_accomodation_location=state.trip_accomodation_location,
-        trip_budget=state.trip_budget,
-        trip_theme=state.trip_theme,
-        trip_fixed_schedules=state.trip_fixed_schedules,
+        **state.model_dump()
     )
 
     return {
-        "message_list": [AIMessage(system_prompt)],
+        "message_list": [SystemMessage(system_prompt)],
     }
 
 
@@ -210,12 +205,12 @@ async def generate_queries(state: LoopState, writer: StreamWriter):
     class Queries(BaseModel):
         queries: list[Query]
 
-    response = (
+    response: Queries = (
         ChatPromptTemplate.from_messages(
             [
                 *state.message_list,
                 HumanMessage(
-                    f"""Read my trip information carefully, and generate upto {(state.trip_free_hours or 30) // 10} queries to look up information on the internet. Make sure each query don't overlap with the other ones."""
+                    f"""Read my trip information carefully, and generate upto {(state.trip_free_hours or 20) // 10} queries to look up information on the internet. Make sure each query don't overlap with the other ones."""
                 ),
             ]
         )
@@ -251,32 +246,32 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
         SKIP = "skip"
 
     class Actions(BaseModel):
-        rationale: str = Field(description="Explain why you want to do this action")
-        type: ActionsType
         query_id: int
+        rationale: str = Field(description="Explain why you want to do this action.")
+        type: ActionsType
         new_query_value: str = Field(description="Leave empty if type is remove")
 
     class ValidateAndImproveQueries(BaseModel):
         is_current_queries_good_enough: bool = Field(description="")
         actions: list[Actions]
 
-    response = (
+    response: ValidateAndImproveQueries = (
         ChatPromptTemplate.from_messages(
             [
                 *state.message_list,
                 HumanMessage(
-                    "Check again if the queries are good enough. They should be diverse and not redundant. If there are redundant ones, remove them except the best one. Add new queries related to my trip infomation if they are not covered. Modify the queries if they are not specific enough to the my trip. If a query is good enough, skip it."
+                    "Check again if the queries are good enough. They should be diverse and not redundant. If there are redundant ones, remove them except the best one. Add new queries related to my trip infomation if they are not covered. Modify the queries if they are not specific enough to the my trip. For the queries that are good enough, put SKIP as an action type."
                 ),
             ]
         )
         | chat_model.with_structured_output(ValidateAndImproveQueries)
     ).invoke({})
 
-    if response.is_current_queries_good_enough or len(state.queries) >= 5:
+    if response.is_current_queries_good_enough or len(state.queries) >= 3:
         return Command(
             goto=[
                 Send(n(internet_search), {**state.model_dump(), "query": query.query})
-                for query in state.queries[:]
+                for query in state.queries[:2]
             ]
         )
     else:
@@ -342,6 +337,112 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
         )
 
 
+def init_slot_in_schedule_loop(state: OverallState, writer: StreamWriter):
+    print("\n>>> NODE: init_slot_in_schedule_loop")
+
+    format_data = state.model_dump()
+    format_data["internet_search_results"] = "\n\n".join(
+        [
+            f"Search Query:{r['query']}\nResult:{r['query_result']}"
+            for r in state.internet_search_results
+        ]
+    )
+
+    system_prompt = SystemMessage(
+        """You are an AI tour planner. You are going to arrange a schedule for a user's trip. 
+
+---
+
+Here are some details about the trip:
+
+The user will be visiting {trip_location} (staying at {trip_accomodation_location}). The budget is {trip_budget} and the user wants the trip to be a theme of {trip_theme}. The user's interests are {user_interests}. 
+
+- The user's arrival details:
+Date: {trip_arrival_date}
+Time: {trip_arrival_time}
+Terminal: {trip_arrival_terminal}
+
+- The user's departure details:
+Date: {trip_departure_date}
+Time: {trip_departure_time}
+Terminal: {trip_departure_terminal}
+
+- Daily schedule:
+Start of day: {trip_start_of_day_at}
+End of day: {trip_end_of_day_at}
+
+- There are fixed schedules that the user has to follow:
+{trip_fixed_schedules}
+
+- Extra information about the user:
+{user_extra_info}
+
+---
+
+
+Here are information that you have collected on the internet:
+
+{internet_search_results}
+
+
+---
+
+
+You can add, modify, or remove items in the schedule. 
+    """.format(
+            **format_data
+        )
+    )
+
+    # Reset the slot_in_schedule_loop_messages and add the system prompt
+    return {
+        "slot_in_schedule_loop_messages": [system_prompt]
+        + [RemoveMessage(id=m.id) for m in state.slot_in_schedule_loop_messages[:]]
+    }
+
+
+def slot_in_schedule(state: OverallState, writer: StreamWriter):
+    if len(state.schedule) >= 5:
+        print("Terminate slot_in_schedule")
+        return Command(
+            goto="__end__",
+        )
+
+    print("\n>>> NODE: slot_in_schedule")
+
+    messages = state.slot_in_schedule_loop_messages
+    # Add system prompt for the first iteration
+
+    messages.append(
+        HumanMessage(
+            f"Slot an item in the empty schedule. Here is my current schedule:\n\n{convert_schedule_item_to_string(state.schedule)}"
+        )
+    )
+
+    response: ScheduleItem = (
+        ChatPromptTemplate.from_messages(messages)
+        | chat_model.with_structured_output(ScheduleItem)
+    ).invoke({})
+
+    writer(
+        {
+            # "title": "Slot in schedule",
+            "description": convert_schedule_item_to_string([response]),
+        }
+    )
+
+    return Command(
+        goto=n(slot_in_schedule),
+        update={
+            "slot_in_schedule_loop_messages": [
+                messages[-1],  # HumanMessage
+                AIMessage(response.model_dump_json()),
+            ],
+            "schedule": [response],
+        },
+    )
+
+
 g = StateGraph(OverallState)
 g.add_edge(START, n(calculate_how_many_schedules))
 
@@ -362,3 +463,9 @@ g.add_edge(n(generate_queries), n(validate_and_improve_queries))
 g.add_node(n(validate_and_improve_queries), validate_and_improve_queries)
 
 g.add_node(n(internet_search), internet_search)
+g.add_edge(n(internet_search), n(init_slot_in_schedule_loop))
+
+g.add_node(n(init_slot_in_schedule_loop), init_slot_in_schedule_loop)
+g.add_edge(n(init_slot_in_schedule_loop), n(slot_in_schedule))
+
+g.add_node(n(slot_in_schedule), slot_in_schedule)
