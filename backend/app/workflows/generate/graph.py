@@ -103,6 +103,7 @@ def add_terminal_schedules(state: OverallState):
                 location=state.trip_arrival_terminal,
                 title=f"Arrive at {state.trip_arrival_terminal}",
                 description=None,
+                suggestion=None,
             ),
             ScheduleItem(
                 id=2,
@@ -114,6 +115,7 @@ def add_terminal_schedules(state: OverallState):
                 location=state.trip_departure_terminal,
                 title=f"Departure at {state.trip_departure_terminal}",
                 description=None,
+                suggestion=None,
             ),
         ]
     }
@@ -246,8 +248,8 @@ async def generate_queries(state: GenerateQueryLoopState, writer: StreamWriter):
     }
 
 
-def validate_and_improve_queries(state: GenerateQueryLoopState, writer: StreamWriter):
-    print("\n>>> NODE: validate_and_improve_queries")
+def validate_and_improve_queries_loop(state: GenerateQueryLoopState, writer: StreamWriter):
+    print("\n>>> NODE: validate_and_improve_queries_loop")
 
     class ActionsType(str, Enum):
         ADD = "add"
@@ -357,7 +359,7 @@ def validate_and_improve_queries(state: GenerateQueryLoopState, writer: StreamWr
                 "generate_query_loop_queries": queries,
                 "loop_iteration": state.loop_iteration + 1,
             },
-            goto=n(validate_and_improve_queries),
+            goto=n(validate_and_improve_queries_loop),
         )
 
 
@@ -390,17 +392,6 @@ Extra information about the user:
 
 Here are information that you have collected on the internet:
 {internet_search_results_string}
-
-
----
-
-
-Important Rules:
-- Prioritize the most relevant activities to fill the empty time slots first.
-- Consider travel time between locations, and include it in the schedule as a separate entry.
-- Ensure meal times are accounted for and spaced appropriately throughout the day.
-- Fill in events in order, starting with the earliest empty time slot.
-- Don't forget to come back to accommodation every night.
     """.format(
             **format_data
         )
@@ -418,17 +409,17 @@ class SlotInScheduleState(OverallState):
     )
 
 
-def slot_in_schedule(state: SlotInScheduleState, writer: StreamWriter):
+def slot_in_schedule_loop(state: SlotInScheduleState, writer: StreamWriter):
     empty_slots = calculate_empty_slots(
         state.schedule_list, state.trip_start_of_day_at, state.trip_end_of_day_at
     )
     if not empty_slots:
-        print("\n>>> Terminate slot_in_schedule")
+        print("\n>>> Terminate slot_in_schedule_loop")
         return Command(
             goto="__end__",
         )
 
-    print("\n>>> NODE: slot_in_schedule")
+    print("\n>>> NODE: slot_in_schedule_loop")
 
     messages = state.slot_in_schedule_loop_messages
     should_add_system_prompt = False
@@ -447,6 +438,14 @@ Current schedule:
 
 Empty slots:
 {empty_slots}
+
+Important Rules:
+- Fill in events in order, starting with the earliest empty time slot.
+- Unless special circumstances, first check in the accommodation before starting the trip.
+- Consider travel time between locations, and add the travel as an event.
+- Prioritize the activities that are the most relevant to the user and don't overlap with the current schedule.
+- Ensure meal times are accounted for and spaced appropriately throughout the day.
+- Don't forget to come back to accommodation every night.
         """
     )
 
@@ -473,7 +472,7 @@ Empty slots:
     # It's redundant as we provide it every iteration.
 
     return Command(
-        goto=n(slot_in_schedule),
+        goto=n(slot_in_schedule_loop),
         update={
             "slot_in_schedule_loop_messages": new_messages,
             "schedule_list": [action.schedule_item for action in response.actions],
@@ -500,14 +499,14 @@ g.add_node(
 g.add_edge(n(init_generate_queries_validation_loop), n(generate_queries))
 
 g.add_node(n(generate_queries), generate_queries)
-g.add_edge(n(generate_queries), n(validate_and_improve_queries))
+g.add_edge(n(generate_queries), n(validate_and_improve_queries_loop))
 
-g.add_node(n(validate_and_improve_queries), validate_and_improve_queries)
+g.add_node(n(validate_and_improve_queries_loop), validate_and_improve_queries_loop)
 
 g.add_node(n(internet_search), internet_search)
 g.add_edge(n(internet_search), n(init_slot_in_schedule_loop))
 
 g.add_node(n(init_slot_in_schedule_loop), init_slot_in_schedule_loop)
-g.add_edge(n(init_slot_in_schedule_loop), n(slot_in_schedule))
+g.add_edge(n(init_slot_in_schedule_loop), n(slot_in_schedule_loop))
 
-g.add_node(n(slot_in_schedule), slot_in_schedule)
+g.add_node(n(slot_in_schedule_loop), slot_in_schedule_loop)

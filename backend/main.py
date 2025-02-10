@@ -20,7 +20,7 @@ from app.utils.compile_graph import compile_graph_with_async_checkpointer
 from app.workflows.entry_graph import g as entry_graph
 from app.workflows.generate.graph import (
     add_fixed_schedules,
-    slot_in_schedule,
+    slot_in_schedule_loop,
     add_terminal_schedules,
 )
 
@@ -226,7 +226,7 @@ async def generate_schedule_ws(websocket: WebSocket):
                 if update_dict := (
                     data.get(n(add_fixed_schedules))
                     or data.get(n(add_terminal_schedules))
-                    or data.get(n(slot_in_schedule))
+                    or data.get(n(slot_in_schedule_loop))
                 ):
                     for schedule in update_dict["schedule_list"]:
                         await websocket.send_json(

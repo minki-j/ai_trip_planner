@@ -164,7 +164,7 @@ def calculate_empty_slots(
 
     for date, slots in free_slots_grouped_by_date.items():
         free_slots_string += (
-            f"Date: {date}\n" + "\n".join([(f"- {slot}") for slot in slots]) + "\n\n"
+            f"- {date}: " + ", ".join([(f"- {slot}") for slot in slots]) + "\n"
         )
 
     return free_slots_string

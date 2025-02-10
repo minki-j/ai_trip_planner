@@ -1,6 +1,25 @@
 import { useState } from "react";
-import { ScheduleItemTime, ScheduleItem, ScheduleItemType } from "@/models/Schedule";
-import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import {
+  ScheduleItem,
+  ScheduleItemType,
+  ScheduleItemTime,
+} from "@/models/Schedule";
+import {
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Clock,
+  Plane,
+  Bus,
+  Footprints,
+  Calendar,
+  Building,
+  Route,
+  Landmark,
+  UtensilsCrossed,
+  HelpCircle,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ScheduleDisplayProps {
   schedules: ScheduleItem[];
@@ -27,14 +46,10 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
     },
     {
       earliest: new Date(
-        Math.max(
-          ...schedules.map((a) => new Date(a.time.start_time).getTime())
-        )
+        Math.max(...schedules.map((a) => new Date(a.time.start_time).getTime()))
       ),
       latest: new Date(
-        Math.min(
-          ...schedules.map((a) => new Date(a.time.start_time).getTime())
-        )
+        Math.min(...schedules.map((a) => new Date(a.time.start_time).getTime()))
       ),
     }
   );
@@ -70,8 +85,14 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
 
   // Filter schedules for current date and sort by start time
   const currentDateSchedules = schedules
-    .filter((schedule) => isSameDay(new Date(schedule.time.start_time), currentDate))
-    .sort((a, b) => new Date(a.time.start_time).getTime() - new Date(b.time.start_time).getTime());
+    .filter((schedule) =>
+      isSameDay(new Date(schedule.time.start_time), currentDate)
+    )
+    .sort(
+      (a, b) =>
+        new Date(a.time.start_time).getTime() -
+        new Date(b.time.start_time).getTime()
+    );
 
   // Helper function to format time
   const formatTime = (date: Date) => {
@@ -82,31 +103,72 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
     });
   };
 
-  // Helper function to get schedule background color based on type
-  const getScheduleColor = (type: ScheduleItemType) => {
-    const colors = {
-      [ScheduleItemType.TERMINAL]: "bg-blue-100",
-      [ScheduleItemType.TRANSPORT]: "bg-yellow-100",
-      [ScheduleItemType.WALK]: "bg-green-100",
-      [ScheduleItemType.EVENT]: "bg-purple-100",
-      [ScheduleItemType.MUSEUM_GALLERY]: "bg-pink-100",
-      [ScheduleItemType.STREETS]: "bg-orange-100",
-      [ScheduleItemType.HISTORICAL_SITE]: "bg-red-100",
-      [ScheduleItemType.MEAL]: "bg-teal-100",
-      [ScheduleItemType.OTHER]: "bg-gray-100",
+  // Helper function to get schedule styling based on type
+  const getScheduleStyling = (type: ScheduleItemType) => {
+    const styles = {
+      [ScheduleItemType.TERMINAL]: {
+        bg: "bg-blue-50",
+        border: "border-blue-200",
+        icon: Plane,
+      },
+      [ScheduleItemType.TRANSPORT]: {
+        bg: "bg-yellow-50",
+        border: "border-yellow-200",
+        icon: Bus,
+      },
+      [ScheduleItemType.WALK]: {
+        bg: "bg-green-50",
+        border: "border-green-200",
+        icon: Footprints,
+      },
+      [ScheduleItemType.EVENT]: {
+        bg: "bg-purple-50",
+        border: "border-purple-200",
+        icon: Calendar,
+      },
+      [ScheduleItemType.MUSEUM_GALLERY]: {
+        bg: "bg-pink-50",
+        border: "border-pink-200",
+        icon: Building,
+      },
+      [ScheduleItemType.STREETS]: {
+        bg: "bg-orange-50",
+        border: "border-orange-200",
+        icon: Route,
+      },
+      [ScheduleItemType.HISTORICAL_SITE]: {
+        bg: "bg-red-50",
+        border: "border-red-200",
+        icon: Landmark,
+      },
+      [ScheduleItemType.MEAL]: {
+        bg: "bg-teal-50",
+        border: "border-teal-200",
+        icon: UtensilsCrossed,
+      },
+      [ScheduleItemType.OTHER]: {
+        bg: "bg-gray-50",
+        border: "border-gray-200",
+        icon: HelpCircle,
+      },
     };
-    return colors[type] || "bg-gray-100";
+    return styles[type] || styles[ScheduleItemType.OTHER];
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto px-4">
       {/* Date Navigation */}
-      <div className="flex items-center justify-between mb-6">
+      <motion.div
+        className="flex items-center justify-between mb-8 bg-white sticky top-0 py-4 z-10"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
         <button
           onClick={handlePreviousDay}
-          className={`p-2 rounded-full transition-colors ${
+          className={`p-2 rounded-full transition-all duration-200 ${
             !isPreviousDisabled
-              ? "hover:bg-gray-100"
+              ? "hover:bg-gray-100 hover:scale-105 active:scale-95"
               : "opacity-20 cursor-not-allowed"
           }`}
           aria-label="Previous day"
@@ -114,9 +176,9 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
         >
           <ChevronLeft className="h-6 w-6" />
         </button>
-        <h2 className="text-md font-semibold">
+        <h2 className="text-xl font-bold text-gray-900">
           {currentDate.toLocaleDateString("en-US", {
-            weekday: "short",
+            weekday: "long",
             year: "numeric",
             month: "long",
             day: "numeric",
@@ -124,9 +186,9 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
         </h2>
         <button
           onClick={handleNextDay}
-          className={`p-2 rounded-full transition-colors ${
+          className={`p-2 rounded-full transition-all duration-200 ${
             !isNextDisabled
-              ? "hover:bg-gray-100"
+              ? "hover:bg-gray-100 hover:scale-105 active:scale-95"
               : "opacity-20 cursor-not-allowed"
           }`}
           aria-label="Next day"
@@ -134,48 +196,93 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
         >
           <ChevronRight className="h-6 w-6" />
         </button>
-      </div>
+      </motion.div>
 
       {/* Schedule Timeline */}
       <div className="relative border-l-2 border-gray-200 ml-2">
-        {currentDateSchedules.length === 0 ? (
-          <div className="ml-6 py-4 text-gray-500">
-            No schedules for this date
-          </div>
-        ) : (
-          currentDateSchedules.map((schedule) => (
-            <div key={schedule.id} className="mb-8 ml-6">
-              {/* Time Indicator */}
-              <div className="flex items-center">
-                <div className="absolute -left-1.5 mt-1.5">
-                  <div className="h-3 w-3 rounded-full bg-gray-400" />
-                </div>
-                <time className="mb-1 text-sm font-normal leading-none text-gray-500">
-                  {formatTime(new Date(schedule.time.start_time))}
-                  {schedule.time.end_time ? (
-                    <> - {formatTime(new Date(schedule.time.end_time))}</>
-                  ) : null}
-                </time>
-              </div>
+        <AnimatePresence mode="wait">
+          {currentDateSchedules.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="ml-6 py-8 text-gray-500 flex flex-col items-center"
+            >
+              <Calendar className="h-12 w-12 text-gray-400 mb-2" />
+              <p>No schedules for this date</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {currentDateSchedules.map((schedule, index) => {
+                const styling = getScheduleStyling(schedule.type);
+                const Icon = styling.icon;
 
-              {/* Schedule Card */}
-              <div
-                className={`p-4 rounded-lg ${getScheduleColor(
-                  schedule.type
-                )} mt-2`}
-              >
-                <h3 className="text-md font-semibold text-gray-900 mb-1">
-                  {schedule.title}
-                </h3>
-                <div className="flex items-center mb-2">
-                  <MapPin className="h-4 w-4 text-gray-500 mr-1" />
-                  <p className="text-sm text-gray-500">{schedule.location}</p>
-                </div>
-                <p className="text-sm text-gray-700">{schedule.description}</p>
-              </div>
-            </div>
-          ))
-        )}
+                return (
+                  <motion.div
+                    key={schedule.id}
+                    className="mb-8 ml-6"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    {/* Time Indicator */}
+                    <div className="flex items-center group">
+                      <div className="absolute -left-2 mt-1.5">
+                        <div className="h-4 w-4 rounded-full bg-white border-2 border-gray-300 group-hover:border-gray-400 transition-colors duration-200" />
+                      </div>
+                      <time className="mb-1 text-sm font-medium text-gray-600 flex items-center">
+                        <Clock className="h-4 w-4 mr-1" />
+                        {formatTime(new Date(schedule.time.start_time))}
+                        {schedule.time.end_time && (
+                          <>
+                            <span className="mx-2">-</span>
+                            {formatTime(new Date(schedule.time.end_time))}
+                          </>
+                        )}
+                      </time>
+                    </div>
+
+                    {/* Schedule Card */}
+                    <div
+                      className={`p-6 rounded-lg ${styling.bg} border ${styling.border} mt-2 transition-all duration-200 hover:shadow-md`}
+                      role="article"
+                      aria-label={`Schedule: ${schedule.title}`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="p-2 rounded-full bg-white/50">
+                          <Icon className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                            {schedule.title}
+                          </h3>
+                          <div className="flex items-center mb-3 text-gray-600">
+                            <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+                            <p className="text-sm">{schedule.location}</p>
+                          </div>
+                          {schedule.description && (
+                            <p className="text-sm text-gray-700 mb-2 leading-relaxed">
+                              {schedule.description}
+                            </p>
+                          )}
+                          {schedule.suggestion && (
+                            <p className="text-sm text-gray-600 leading-relaxed">
+                              {schedule.suggestion}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -22,4 +22,5 @@ export interface ScheduleItem {
   location: string;
   title: string;
   description: string | null;
+  suggestion: string | null;
 }
