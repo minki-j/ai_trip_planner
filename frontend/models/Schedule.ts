@@ -10,16 +10,16 @@ export enum ScheduleItemType {
   OTHER = "other",
 }
 
-export interface TimeSlot {
+export interface ScheduleItemTime {
   start_time: Date;
-  end_time: Date;
+  end_time: Date | null;
 }
 
 export interface ScheduleItem {
   id: number;
   type: ScheduleItemType;
-  time: TimeSlot;
+  time: ScheduleItemTime;
   location: string;
   title: string;
-  description: string;
+  description: string | null;
 }

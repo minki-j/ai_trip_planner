@@ -12,7 +12,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 
 from app.state import OverallState
-from app.llm import chat_model
+from app.llms import openai_chat_model
 
 from app.models import Stage
 
@@ -29,12 +29,12 @@ asyncio.run(init_generate_schedule())
 def stage_router(state: OverallState):
     print("\n>>> NODE: stage_router")
 
-    if state.stage == Stage.FIRST_GENERATION:
+    if state.current_stage == Stage.FIRST_GENERATION:
         return n(generate_schedule)
-    elif state.stage == Stage.MODIFY:
+    elif state.current_stage == Stage.MODIFY:
         return n(generate_schedule) #! Not implemented yet
     else:
-        raise ValueError(f"Invalid stage: {state.stage}")
+        raise ValueError(f"Invalid stage: {state.current_stage}")
 
 g = StateGraph(OverallState)
 g.add_conditional_edges(

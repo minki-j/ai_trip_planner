@@ -4,7 +4,6 @@ from typing import Annotated, Any
 from langchain_core.messages import AnyMessage
 from app.models import Stage
 from enum import Enum
-import datetime
 
 # ===========================================
 #                VARIABLE SCHEMA
@@ -21,14 +20,14 @@ class ScheduleItemType(str, Enum):
     REMOVE = "remove"
     OTHER = "other"
 
-class TimeSlot(BaseModel):
+class ScheduleItemTime(BaseModel):
     start_time: str = Field(description="YYYY-MM-DD HH:MM")
     end_time: str | None = Field(description="YYYY-MM-DD HH:MM")
 
 class ScheduleItem(BaseModel):
     id: int
     type: ScheduleItemType
-    time: TimeSlot
+    time: ScheduleItemTime
     location: str
     title: str
     description: str | None
@@ -61,10 +60,6 @@ def insert_schedule(original: list[ScheduleItem], new: list[ScheduleItem]):
     return original
 
 
-def replace(_, new: Any):
-    return new
-
-
 # ===========================================
 #                    STATE
 # ===========================================
@@ -77,16 +72,16 @@ class InputState(BaseModel):
     user_interests: list[str] = Field(default_factory=list)
     user_extra_info: str = Field(default=None)
 
-    trip_arrival_date: str = Field(default=None)
-    trip_arrival_time: str = Field(default=None)
+    trip_arrival_date: str = Field(default=None, description="YYYY-MM-DD")
+    trip_arrival_time: str = Field(default=None, description="HH:MM")
     trip_arrival_terminal: str = Field(default=None)
 
-    trip_departure_date: str = Field(default=None)
-    trip_departure_time: str = Field(default=None)
+    trip_departure_date: str = Field(default=None, description="YYYY-MM-DD")
+    trip_departure_time: str = Field(default=None, description="HH:MM")
     trip_departure_terminal: str = Field(default=None)
 
-    trip_start_of_day_at: str = Field(default=None)
-    trip_end_of_day_at: str = Field(default=None)
+    trip_start_of_day_at: str = Field(default=None, description="HH:MM")
+    trip_end_of_day_at: str = Field(default=None, description="HH:MM")
 
     trip_location: str = Field(default=None)
     trip_accomodation_location: str = Field(default=None)
@@ -99,16 +94,14 @@ class InputState(BaseModel):
 
 
 class OverallState(InputState):
-    stage: Stage = Stage.FIRST_GENERATION
+    current_stage: Stage = Stage.FIRST_GENERATION
 
-    internet_search_results: Annotated[list[dict], extend_list] = Field(
+    internet_search_result_list: Annotated[list[dict], extend_list] = Field(
         default_factory=list
     )
 
-    schedule: Annotated[list[ScheduleItem], insert_schedule] = Field(
+    schedule_list: Annotated[list[ScheduleItem], insert_schedule] = Field(
         default_factory=list
     )
 
-    slot_in_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
-
-    updated_trip_information: Annotated[list[str], extend_list] = Field(default_factory=list)
+    updated_trip_information_list: Annotated[list[str], extend_list] = Field(default_factory=list)

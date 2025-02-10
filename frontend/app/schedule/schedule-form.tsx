@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { updateSchedule } from "./actions";
 import { useState } from "react";
-import { TimeSlot, ScheduleItem } from "@/models/Schedule";
+import { ScheduleItemTime, ScheduleItem } from "@/models/Schedule";
 
 interface ScheduleFormProps {
   initialSchedules: ScheduleItem[];
@@ -38,7 +38,7 @@ export default function ScheduleForm({ initialSchedules }: ScheduleFormProps) {
     if (field.includes(".")) {
       const [parent, child] = field.split(".") as [
         keyof ScheduleItem,
-        keyof TimeSlot
+        keyof ScheduleItemTime
       ];
       if (parent === "time") {
         schedule.time = {

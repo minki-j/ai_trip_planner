@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TimeSlot, ScheduleItem, ScheduleItemType } from "@/models/Schedule";
+import { ScheduleItemTime, ScheduleItem, ScheduleItemType } from "@/models/Schedule";
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 
 interface ScheduleDisplayProps {
@@ -68,10 +68,10 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
   const isPreviousDisabled = isSameDay(currentDate, dateRange.earliest);
   const isNextDisabled = isSameDay(currentDate, dateRange.latest);
 
-  // Filter schedules for current date
-  const currentDateSchedules = schedules.filter((schedule) =>
-    isSameDay(new Date(schedule.time.start_time), currentDate)
-  );
+  // Filter schedules for current date and sort by start time
+  const currentDateSchedules = schedules
+    .filter((schedule) => isSameDay(new Date(schedule.time.start_time), currentDate))
+    .sort((a, b) => new Date(a.time.start_time).getTime() - new Date(b.time.start_time).getTime());
 
   // Helper function to format time
   const formatTime = (date: Date) => {

@@ -1,24 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { redirect } from "next/navigation";
-import ReactMarkdown from "react-markdown";
-
 import { useSession } from "next-auth/react";
+
+import { RefreshCw, Edit } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 import ScheduleForm from "./schedule-form";
 import ScheduleDisplay from "./schedule-display";
 import Loading from "./loading";
+import { getGraphState, resetAgentStateAction } from "./actions";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { returnWebSockerURL } from "@/lib/utils";
-
 import { ScheduleItem } from "@/models/Schedule";
-
-import { getGraphState } from "./actions";
-
-import { RefreshCw, Edit } from "lucide-react";
 
 interface ReasoningStep {
   title: string;
@@ -27,17 +24,27 @@ interface ReasoningStep {
 
 export default function SchedulePage() {
   const { data: session, status } = useSession();
+  
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
+  
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showReasoningSteps, setShowReasoningSteps] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const stepsContainerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (stepsContainerRef.current && reasoningSteps.length > 0) {
+      stepsContainerRef.current.scrollTop = 0;
+    }
+  }, [reasoningSteps]);
 
   useEffect(() => {
     setIsLoading(true);
     const fetchInitialSchedules = async () => {
       const state = await getGraphState();
-      setSchedules(state.schedule);
+      setSchedules(state.schedule_list);
     };
 
     fetchInitialSchedules().finally(() => setIsLoading(false));
@@ -79,6 +86,10 @@ export default function SchedulePage() {
   };
 
   const startGeneration = async () => {
+    await resetAgentStateAction();
+    setReasoningSteps([]);
+    setSchedules([]);
+
     const websocket = await connectWebSocket();
     if (!websocket) {
       return;
@@ -144,8 +155,9 @@ export default function SchedulePage() {
     <>
       {/* Reasoning Steps */}
       {reasoningSteps.length > 0 && showReasoningSteps && (
-        <div className="p-4 space-y-4 h-[75vh] overflow-y-scroll scrollbar-show bg-gray-100">
-          <h2 className="text-lg font-semibold mb-4">Reasoning Steps</h2>
+        <div 
+          ref={stepsContainerRef}
+          className="p-4 space-y-4 h-[30vh] overflow-y-scroll scrollbar-show bg-gray-100">
           {reasoningSteps.map((step, index) => (
             <div key={index} className="border-l-2 border-primary/20 pl-4 py-2">
               <h3 className="text-sm font-medium text-primary mb-2">
@@ -177,6 +189,7 @@ export default function SchedulePage() {
           ))}
         </div>
       )}
+
       {/* Show/Hide reasoning steps button */}
       {reasoningSteps.length > 0 ? (
         <button
@@ -230,31 +243,31 @@ export default function SchedulePage() {
               <p className="text-muted-foreground">No schedules to display</p>
             </div>
           )}
-
-          {/* Floating Buttons */}
-          <Button
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Are you sure you want to regenerate a new schedule?"
-                )
-              ) {
-                startGeneration();
-              }
-            }}
-            size="lg"
-            className="fixed bottom-3 right-3 rounded-full w-8 h-8 shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-primary text-primary-foreground"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button
-            onClick={() => setIsEditMode(!isEditMode)}
-            size="lg"
-            className="fixed bottom-14 right-3 rounded-full w-8 h-8 shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-primary text-primary-foreground"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
         </div>
+
+        {/* Floating Buttons */}
+        <Button
+          onClick={() => {
+            if (
+              window.confirm(
+                "Are you sure you want to regenerate a new schedule?"
+              )
+            ) {
+              startGeneration();
+            }
+          }}
+          size="lg"
+          className="fixed bottom-3 right-3 rounded-full w-8 h-8 shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-primary text-primary-foreground"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={() => setIsEditMode(!isEditMode)}
+          size="lg"
+          className="fixed bottom-14 right-3 rounded-full w-8 h-8 shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-primary text-primary-foreground"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
       </div>
     </>
   );

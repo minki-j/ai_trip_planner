@@ -6,11 +6,12 @@ from enum import Enum
 from pydantic import BaseModel, Field
 from typing import Annotated, Any
 
-from langgraph.graph import START, END, StateGraph
+from langgraph.graph import START, END, StateGraph, add_messages
 from langgraph.types import StreamWriter, Command, Send
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 from langchain_core.messages import (
     AnyMessage,
     SystemMessage,
@@ -18,26 +19,23 @@ from langchain_core.messages import (
     AIMessage,
     RemoveMessage,
 )
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
-
 
 from app.state import (
     OverallState,
-    extend_list,
     ScheduleItem,
     ScheduleItemType,
-    TimeSlot,
+    ScheduleItemTime,
+    extend_list,
 )
-from app.llm import chat_model
-
 from app.models import Role
+from app.llms import openai_chat_model
+from app.utils.utils import convert_schedule_items_to_string, calculate_empty_slots
+from app.workflows.tools.internet_search import internet_search, InternetSearchState
 
-from app.workflows.tools.internet_search import internet_search
-
-from app.utils.utils import convert_schedule_items_to_string
 
 MAX_NUM_OF_QUERIES = 3
-MAX_NUM_OF_SCHEDULES = 15
+MAX_NUM_OF_SCHEDULES = 100
+MAX_NUM_OF_LOOPS = 100
 
 
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
@@ -59,9 +57,9 @@ I'll be arriving at {trip_arrival_date} at {trip_arrival_time}. And I'm going to
 I have some fixed schedules which you need to exclude from the calculation: {trip_fixed_schedules}
 
 Before returning the result, think out loud on how you calculate the number of free hours.
-"""
+        """
         )
-        | chat_model.with_structured_output(FreeHourResponse)
+        | openai_chat_model.with_structured_output(FreeHourResponse)
     ).invoke(
         {
             "trip_arrival_date": state.trip_arrival_date,
@@ -87,27 +85,29 @@ Before returning the result, think out loud on how you calculate the number of f
     }
 
 
-def add_terminal_time_to_schedule(state: OverallState):
-    print("\n>>> NODE: add_terminal_time_to_schedule")
+def add_fixed_schedules(state: OverallState):
+    print("\n>>> NODE: add_fixed_schedules")
 
-    prompt = f"""Convert this into datetime input format [year, month, day, hour, minute].
-    Arrival info: {state.trip_arrival_date} {state.trip_arrival_time}
-    Departure info: {state.trip_departure_date} {state.trip_departure_time}"""
+    prompt = """Convert this into datetime input format [year, month, day, hour, minute].
+    Arrival info: {trip_arrival_date} {trip_arrival_time}
+    Departure info: {trip_departure_date} {trip_departure_time}""".format(
+        **state.model_dump()
+    )
 
     class TimeConvertOutput(BaseModel):
         arrival_time: str = Field(description="YYYY-MM-DD HH:MM")
         departure_time: str = Field(description="YYYY-MM-DD HH:MM")
 
-    response: TimeConvertOutput = chat_model.with_structured_output(
+    response: TimeConvertOutput = openai_chat_model.with_structured_output(
         TimeConvertOutput
     ).invoke(prompt)
 
     return {
-        "schedule": [
+        "schedule_list": [
             ScheduleItem(
                 id=1,
                 type=ScheduleItemType.TERMINAL,
-                time=TimeSlot(
+                time=ScheduleItemTime(
                     start_time=response.arrival_time,
                     end_time=None,
                 ),
@@ -118,7 +118,7 @@ def add_terminal_time_to_schedule(state: OverallState):
             ScheduleItem(
                 id=2,
                 type=ScheduleItemType.TERMINAL,
-                time=TimeSlot(
+                time=ScheduleItemTime(
                     start_time=response.departure_time,
                     end_time=None,
                 ),
@@ -133,7 +133,8 @@ def add_terminal_time_to_schedule(state: OverallState):
 def init_generate_queries_validation_loop(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: init_generate_queries_validation_loop")
 
-    system_prompt = """You are an AI tour planner doing some research for the user.
+    system_prompt = """
+You are an AI tour planner doing some research for the user.
 
 The user will be visiting {trip_location} (staying at {trip_accomodation_location}). The budget is {trip_budget} and the user wants the trip to be a theme of {trip_theme}. The user's interests are {user_interests}. 
 
@@ -174,27 +175,33 @@ Query: Best beaches in Cuba to relax
 
 3.
 Rationale: The user is visiting Iceland and wants a Adventure & Sports theme trip. I should look up which volcano is the most active in Iceland.
-Query: Most active volcano in Iceland""".format(
+Query: Most active volcano in Iceland
+    """.format(
         **state.model_dump()
     )
 
     return {
-        "message_list": [SystemMessage(system_prompt)],
+        "generate_query_loop_message_list": [SystemMessage(system_prompt)],
     }
 
 
 class Query(BaseModel):
     id: int = Field(default=None)
     rationale: str
-    query: str
+    content: str
 
 
-class LoopState(OverallState):
-    message_list: Annotated[list[AnyMessage], extend_list] = Field(default_factory=list)
-    queries: list[Query] = Field(default_factory=list)
+# For the loop of generating queries and validating them
+# We need an temporary state that stores the message list and the queries
+class GenerateQueryLoopState(OverallState):
+    loop_iteration: int = Field(default=0)
+    generate_query_loop_message_list: Annotated[list[AnyMessage], extend_list] = Field(
+        default_factory=list
+    )
+    generate_query_loop_queries: list[Query] = Field(default_factory=list)
 
 
-async def generate_queries(state: LoopState, writer: StreamWriter):
+async def generate_queries(state: GenerateQueryLoopState, writer: StreamWriter):
     print("\n>>> NODE: generate_queries")
 
     writer(
@@ -209,13 +216,13 @@ async def generate_queries(state: LoopState, writer: StreamWriter):
     response: Queries = (
         ChatPromptTemplate.from_messages(
             [
-                *state.message_list,
+                *state.generate_query_loop_message_list,
                 HumanMessage(
                     f"""Read my trip information carefully, and generate upto {state.trip_free_hours // 10} queries to look up information on the internet. Make sure each query don't overlap with the other ones."""
                 ),
             ]
         )
-        | chat_model.with_structured_output(Queries)
+        | openai_chat_model.with_structured_output(Queries)
     ).invoke({})
 
     response_dict_with_id = []
@@ -227,17 +234,20 @@ async def generate_queries(state: LoopState, writer: StreamWriter):
     writer(
         {
             "title": "Queries to look up on the internet",
-            "description": "\n".join([f"- {q.query}" for q in response.queries]),
+            "description": "\n".join([f"- {q.content}" for q in response.queries]),
         }
     )
 
     return {
-        "message_list": [AIMessage(json.dumps(response_dict_with_id))],
-        "queries": response_dict_with_id,
+        "generate_query_loop_message_list": [
+            AIMessage(json.dumps(response_dict_with_id))
+        ],
+        "generate_query_loop_queries": response_dict_with_id,
+        "loop_iteration": state.loop_iteration + 1,
     }
 
 
-def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
+def validate_and_improve_queries(state: GenerateQueryLoopState, writer: StreamWriter):
     print("\n>>> NODE: validate_and_improve_queries")
 
     class ActionsType(str, Enum):
@@ -259,29 +269,39 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
     response: ValidateAndImproveQueries = (
         ChatPromptTemplate.from_messages(
             [
-                *state.message_list,
+                *state.generate_query_loop_message_list,
                 HumanMessage(
                     "Check again if the queries are good enough. They should be diverse and not redundant. If there are redundant ones, remove them except the best one. Add new queries related to my trip infomation if they are not covered. Modify the queries if they are not specific enough to the my trip. For the queries that are good enough, put SKIP as an action type."
                 ),
             ]
         )
-        | chat_model.with_structured_output(ValidateAndImproveQueries)
+        | openai_chat_model.with_structured_output(ValidateAndImproveQueries)
     ).invoke({})
 
     if (
         response.is_current_queries_good_enough
-        or len(state.queries) >= MAX_NUM_OF_QUERIES
+        or len(state.generate_query_loop_queries) >= MAX_NUM_OF_QUERIES
+        or state.loop_iteration >= MAX_NUM_OF_LOOPS
     ):
+        # If the current queries are good enough or the maximum number of queries has been reached, then terminate the loop and start the internet search nodes in parallel
+
         return Command(
             goto=[
-                Send(n(internet_search), {**state.model_dump(), "query": query.query})
-                for query in state.queries[:]
+                Send(
+                    n(internet_search),
+                    InternetSearchState.model_construct(
+                        **state.model_dump(), query=query.content
+                    ),
+                )
+                for query in state.generate_query_loop_queries
             ]
         )
     else:
-        queries = state.queries
+        # Process actions to add, remove, and modify the queries
+        queries = state.generate_query_loop_queries
         for action in response.actions:
             if action.type == ActionsType.ADD:
+                # Add a new query with the next available ID
                 if len(queries) == 0:
                     next_id = 1
                 else:
@@ -290,15 +310,17 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
                 new_query = Query(
                     id=next_id,
                     rationale=action.rationale,
-                    query=action.new_query_value,
+                    content=action.new_query_value,
                 )
                 queries.append(new_query)
             elif action.type == ActionsType.REMOVE:
+                # Remove query by ID
                 queries[:] = [q for q in queries if q.id != action.query_id]
             elif action.type == ActionsType.MODIFY:
+                # Modify existing query by ID
                 for query in queries:
                     if query.id == action.query_id:
-                        query.query = action.new_query_value
+                        query.content = action.new_query_value
                         break
 
         writer(
@@ -317,23 +339,21 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
         writer(
             {
                 "title": "Improved queries",
-                "description": "\n".join([f"- {q.query}" for q in queries]),
+                "description": "\n".join([f"- {q.content}" for q in queries]),
             }
         )
 
+        # Create a new message that contains the LLM's actions
+        new_message = AIMessage(
+            "\n".join([json.dumps(action.model_dump()) for action in response.actions])
+        )
+
+        # Update GenerateQueryLoopState with new queries and a message, and loop back to the current node "validate_and_improve_queries"
         return Command(
             update={
-                "message_list": [
-                    AIMessage(
-                        "\n".join(
-                            [
-                                json.dumps(action.model_dump())
-                                for action in response.actions
-                            ]
-                        )
-                    )
-                ],
-                "queries": queries,
+                "generate_query_loop_message_list": [new_message],
+                "generate_query_loop_queries": queries,
+                "loop_iteration": state.loop_iteration + 1,
             },
             goto=n(validate_and_improve_queries),
         )
@@ -343,15 +363,19 @@ def init_slot_in_schedule_loop(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: init_slot_in_schedule_loop")
 
     format_data = state.model_dump()
-    format_data["internet_search_results"] = "\n\n".join(
+    format_data["internet_search_results_string"] = "\n\n".join(
         [
             f"Search Query:{r['query']}\nResult:{r['query_result']}"
-            for r in state.internet_search_results
+            for r in state.internet_search_result_list
         ]
+    )
+    format_data["schedule_string"] = convert_schedule_items_to_string(
+        state.schedule_list
     )
 
     system_prompt = SystemMessage(
-        """You are an AI tour planner. You are going to arrange a schedule for a user's trip. 
+        """
+You are an AI tour planner. You are going to arrange a schedule for a user's trip. 
 
 Here are some details about the trip:
 
@@ -381,8 +405,14 @@ End of day: {trip_end_of_day_at}
 
 
 Here are information that you have collected on the internet:
+{internet_search_results_string}
 
-{internet_search_results}
+
+---
+
+
+Here are the current items in the schedule:
+{schedule_string}
 
 
 ---
@@ -394,15 +424,20 @@ You can add, modify, or remove items in the schedule.
         )
     )
 
-    # Reset the slot_in_schedule_loop_messages and add the system prompt
     return {
-        "slot_in_schedule_loop_messages": [system_prompt]
-        + [RemoveMessage(id=m.id) for m in state.slot_in_schedule_loop_messages[:]]
+        "system_prompt": system_prompt,
     }
 
 
-def slot_in_schedule(state: OverallState, writer: StreamWriter):
-    if len(state.schedule) >= MAX_NUM_OF_SCHEDULES:
+class SlotInScheduleState(OverallState):
+    system_prompt: SystemMessage
+    slot_in_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(
+        default_factory=list
+    )
+
+
+def slot_in_schedule(state: SlotInScheduleState, writer: StreamWriter):
+    if len(state.schedule_list) >= MAX_NUM_OF_SCHEDULES:
         print("\n>>> Terminate slot_in_schedule")
         return Command(
             goto="__end__",
@@ -411,13 +446,18 @@ def slot_in_schedule(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: slot_in_schedule")
 
     messages = state.slot_in_schedule_loop_messages
+    should_add_system_prompt = False
+    if len(messages) == 0:
+        should_add_system_prompt = True
+        messages.append(state.system_prompt)
+
     # Add system prompt for the first iteration
 
-    messages.append(
-        HumanMessage(
-            f"Slot an item in the empty schedule. Here is my current schedule:\n\n{convert_schedule_items_to_string(state.schedule)}"
-        )
+    human_message_asking_next_action = HumanMessage(
+        f"Slot an item in the empty schedule.\n\nEmpty slots:{calculate_empty_slots(state.schedule_list, state.trip_start_of_day_at, state.trip_end_of_day_at)}"
     )
+
+    messages.append(human_message_asking_next_action)
 
     class SlotInScheduleAction(BaseModel):
         reasining_stage: str = Field(
@@ -427,7 +467,7 @@ def slot_in_schedule(state: OverallState, writer: StreamWriter):
 
     response: SlotInScheduleAction = (
         ChatPromptTemplate.from_messages(messages)
-        | chat_model.with_structured_output(SlotInScheduleAction)
+        | openai_chat_model.with_structured_output(SlotInScheduleAction)
     ).invoke({})
 
     writer(
@@ -437,14 +477,21 @@ def slot_in_schedule(state: OverallState, writer: StreamWriter):
         }
     )
 
+    new_messages = []
+    if should_add_system_prompt:
+        new_messages.append(state.system_prompt)
+    new_messages.extend(
+        [
+            human_message_asking_next_action,
+            AIMessage(response.schedule_item.model_dump_json()),
+        ]
+    )
+
     return Command(
         goto=n(slot_in_schedule),
         update={
-            "slot_in_schedule_loop_messages": [
-                messages[-1],  # HumanMessage
-                AIMessage(response.schedule_item.model_dump_json()),
-            ],
-            "schedule": [response.schedule_item],
+            "slot_in_schedule_loop_messages": new_messages,
+            "schedule_list": [response.schedule_item],
         },
     )
 
@@ -453,10 +500,10 @@ g = StateGraph(OverallState)
 g.add_edge(START, n(calculate_how_many_schedules))
 
 g.add_node(n(calculate_how_many_schedules), calculate_how_many_schedules)
-g.add_edge(n(calculate_how_many_schedules), n(add_terminal_time_to_schedule))
+g.add_edge(n(calculate_how_many_schedules), n(add_fixed_schedules))
 
-g.add_node(n(add_terminal_time_to_schedule), add_terminal_time_to_schedule)
-g.add_edge(n(add_terminal_time_to_schedule), n(init_generate_queries_validation_loop))
+g.add_node(n(add_fixed_schedules), add_fixed_schedules)
+g.add_edge(n(add_fixed_schedules), n(init_generate_queries_validation_loop))
 
 g.add_node(
     n(init_generate_queries_validation_loop), init_generate_queries_validation_loop

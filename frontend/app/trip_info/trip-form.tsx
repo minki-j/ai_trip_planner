@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { redirect } from "next/navigation";
 
-import { format } from "date-fns";
-
 import { useToast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -223,7 +221,6 @@ export function TripForm({ user }: { user: User }) {
         <DatePicker
           value={arrivalDate}
           onChange={(date) => setArrivalDate(date)}
-          name="trip_arrival_date"
         />
         <Input
           type="time"
@@ -262,7 +259,6 @@ export function TripForm({ user }: { user: User }) {
         <DatePicker
           value={departureDate}
           onChange={(date) => setDepartureDate(date)}
-          name="trip_departure_date"
         />
         <Input
           type="time"

@@ -1,23 +1,27 @@
+import os
+import json
+from typing import Optional
+from varname import nameof as n
+
 from fastapi import FastAPI, HTTPException, WebSocket, Request, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.websockets import WebSocketDisconnect
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
-import json
 
 from langchain_core.messages import AnyMessage, HumanMessage, AIMessage
-from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Optional
-
-from app.utils.compile_graph import compile_graph_with_async_checkpointer
-
-from app.models import Stage
-
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from app.llm import chat_model
 
+from app.llms import openai_chat_model
+from app.models import Stage
+from app.utils.compile_graph import compile_graph_with_async_checkpointer
 from app.workflows.entry_graph import g as entry_graph
+from app.workflows.generate.graph import (
+    add_fixed_schedules,
+    slot_in_schedule,
+)
 
 
 async def get_current_user_websocket(websocket: WebSocket) -> Optional[dict]:
@@ -161,9 +165,9 @@ async def reset_state(user: dict = Depends(get_current_user_http)):
         config,
         {
             "stage": Stage.FIRST_GENERATION,
-            "previous_state_before_update": "",
-            "internet_search_results": ["RESET_LIST"],
-            "schedule": ["RESET_LIST"],
+            "internet_search_result_list": ["RESET_LIST"],
+            "schedule_list": ["RESET_LIST"],
+            # "updated_trip_information_list": ["RESET_LIST"],
         },
     )
 
@@ -185,7 +189,7 @@ async def get_graph_state(user: dict = Depends(get_current_user_http)):
     config = {"configurable": {"thread_id": user["id"]}}
     state = await compiled_entry_graph.aget_state(config, subgraphs=True)
     state = state.values
-    # print(f"\n\n>>> GRAPH STATE:\n{state[""]}\n\n")
+    # print(f"\n\n>>> GRAPH STATE:\n{state}\n\n")
 
     if not state:
         return None
@@ -209,7 +213,12 @@ async def generate_schedule_ws(websocket: WebSocket):
         async for graph_namespace, stream_mode, data in workflow.astream(
             {"input": "!! This message is just to avoid empty graph invocation."},
             stream_mode=["custom", "updates"],
-            config={"recursion_limit": 50, "configurable": {"thread_id": user["id"]}},
+            config={
+                "recursion_limit": int(os.environ.get("RECURSION_LIMIT")),
+                "configurable": {
+                    "thread_id": user["id"],
+                },
+            },
             subgraphs=True,
         ):
             if stream_mode == "custom":
@@ -217,10 +226,9 @@ async def generate_schedule_ws(websocket: WebSocket):
                 await websocket.send_json(data)
             else:
                 if update_dict := (
-                    data.get("add_terminal_time_to_schedule")
-                    or data.get("slot_in_schedule")
+                    data.get(n(add_fixed_schedules)) or data.get(n(slot_in_schedule))
                 ):
-                    for schedule in update_dict["schedule"]:
+                    for schedule in update_dict["schedule_list"]:
                         await websocket.send_json(
                             {**schedule.model_dump(), "data_type": "schedule"}
                         )
