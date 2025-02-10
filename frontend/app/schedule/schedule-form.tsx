@@ -16,23 +16,23 @@ import { useState } from "react";
 import { TimeSlot, ScheduleItem } from "@/models/Schedule";
 
 interface ScheduleFormProps {
-  initialActivities: ScheduleItem[];
+  initialSchedules: ScheduleItem[];
 }
 
-export default function ScheduleForm({ initialActivities }: ScheduleFormProps) {
+export default function ScheduleForm({ initialSchedules }: ScheduleFormProps) {
 
-  const [activities, setActivities] = useState(initialActivities);
+  const [schedules, setSchedules] = useState(initialSchedules);
   const [modifiedIndices, setModifiedIndices] = useState<Set<number>>(
     new Set()
   );
 
-  const handleActivityChange = (
+  const handleActivityChange = (  
     index: number,
     field: keyof ScheduleItem | "time.start_time" | "time.end_time",
     value: string
   ) => {
-    const newActivities = [...activities];
-    const activity = { ...newActivities[index] };
+    const newSchedules = [...schedules];
+    const schedule = { ...newSchedules[index] };
 
     // Handle nested fields (e.g., 'time.start_time')
     if (field.includes(".")) {
@@ -41,26 +41,26 @@ export default function ScheduleForm({ initialActivities }: ScheduleFormProps) {
         keyof TimeSlot
       ];
       if (parent === "time") {
-        activity.time = {
-          ...activity.time,
+        schedule.time = {
+          ...schedule.time,
           [child]: new Date(parseInt(value)),
         };
       }
     } else {
       // For non-nested fields, we know field is a direct key of ScheduleItem
-      (activity as any)[field] = value;
+      (schedule as any)[field] = value;
     }
 
-    newActivities[index] = activity;
-    setActivities(newActivities);
+    newSchedules[index] = schedule;
+    setSchedules(newSchedules);
     setModifiedIndices(new Set(modifiedIndices).add(index));
   };
 
   const handleConfirm = async (index: number) => {
-    const updatedActivity = activities[index];
+    const updatedSchedule = schedules[index];
     await updateSchedule({
-      list_of_activities: activities.map((a, i) =>
-        i === index ? updatedActivity : a
+      list_of_activities: schedules.map((a, i) =>
+        i === index ? updatedSchedule : a
       ),
     });
     setModifiedIndices(
@@ -70,7 +70,7 @@ export default function ScheduleForm({ initialActivities }: ScheduleFormProps) {
 
   return (
     <div className="space-y-6">
-      {activities?.map((activity, index) => (
+      {schedules?.map((schedule, index) => (
         <Card key={index} className="w-full">
           <CardContent>
             <div className="grid gap-4">
@@ -79,7 +79,7 @@ export default function ScheduleForm({ initialActivities }: ScheduleFormProps) {
                 <Input
                   type="text"
                   id={`title-${index}`}
-                  defaultValue={activity.title}
+                  defaultValue={schedule.title}
                   onChange={(e) =>
                     handleActivityChange(index, "title", e.target.value)
                   }
@@ -92,16 +92,16 @@ export default function ScheduleForm({ initialActivities }: ScheduleFormProps) {
                     type="datetime-local"
                     id={`start-time-${index}`}
                     defaultValue={
-                      activity.time.start_time instanceof Date
-                        ? activity.time.start_time.toISOString().slice(0, 16)
-                        : new Date(activity.time.start_time)
+                      schedule.time.start_time instanceof Date
+                        ? schedule.time.start_time.toISOString().slice(0, 16)
+                        : new Date(schedule.time.start_time)
                             .toISOString()
                             .slice(0, 16)
                     }
                     value={
-                      activity.time.start_time instanceof Date
-                        ? activity.time.start_time.toISOString().slice(0, 16)
-                        : new Date(activity.time.start_time)
+                      schedule.time.start_time instanceof Date
+                        ? schedule.time.start_time.toISOString().slice(0, 16)
+                        : new Date(schedule.time.start_time)
                             .toISOString()
                             .slice(0, 16)
                     }
@@ -114,23 +114,23 @@ export default function ScheduleForm({ initialActivities }: ScheduleFormProps) {
                     }
                   />
                 </div>
-                {activity.time.end_time && (
+                {schedule.time.end_time && (
                   <div>
                     <Label htmlFor={`end-time-${index}`}>End Time</Label>
                     <Input
                       type="datetime-local"
                       id={`end-time-${index}`}
                       defaultValue={
-                        activity.time.end_time instanceof Date
-                          ? activity.time.end_time.toISOString().slice(0, 16)
-                          : new Date(activity.time.end_time)
+                        schedule.time.end_time instanceof Date
+                          ? schedule.time.end_time.toISOString().slice(0, 16)
+                          : new Date(schedule.time.end_time)
                               .toISOString()
                               .slice(0, 16)
                       }
                       value={
-                        activity.time.end_time instanceof Date
-                          ? activity.time.end_time.toISOString().slice(0, 16)
-                          : new Date(activity.time.end_time)
+                        schedule.time.end_time instanceof Date
+                          ? schedule.time.end_time.toISOString().slice(0, 16)
+                          : new Date(schedule.time.end_time)
                               .toISOString()
                               .slice(0, 16)
                       }
@@ -145,26 +145,26 @@ export default function ScheduleForm({ initialActivities }: ScheduleFormProps) {
                   </div>
                 )}
               </div>
-              {activity.location && (
+              {schedule.location && (
                 <div>
                   <Label htmlFor={`location-${index}`}>Location</Label>
                   <Input
                     id={`location-${index}`}
-                    defaultValue={activity.location}
-                    value={activity.location}
+                    defaultValue={schedule.location}
+                    value={schedule.location}
                     onChange={(e) =>
                       handleActivityChange(index, "location", e.target.value)
                     }
                   />
                 </div>
               )}
-              {activity.description && (
+              {schedule.description && (
                 <div>
                   <Label htmlFor={`description-${index}`}>Description</Label>
                   <Input
                     id={`description-${index}`}
-                    defaultValue={activity.description}
-                    value={activity.description}
+                    defaultValue={schedule.description}
+                    value={schedule.description}
                     onChange={(e) =>
                       handleActivityChange(index, "description", e.target.value)
                     }

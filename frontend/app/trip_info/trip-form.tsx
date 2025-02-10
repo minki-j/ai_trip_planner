@@ -33,11 +33,11 @@ export function TripForm({ user }: { user: User }) {
   const [fixedSchedules, setFixedSchedules] = useState<string[]>(
     user.trip_fixed_schedules || []
   );
-  const [arrivalDate, setArrivalDate] = useState<Date | undefined>(
-    user.trip_arrival_date ? new Date(user.trip_arrival_date) : undefined
+  const [arrivalDate, setArrivalDate] = useState<string | undefined>(
+    user.trip_arrival_date || undefined
   );
-  const [departureDate, setDepartureDate] = useState<Date | undefined>(
-    user.trip_departure_date ? new Date(user.trip_departure_date) : undefined
+  const [departureDate, setDepartureDate] = useState<string | undefined>(
+    user.trip_departure_date || undefined
   );
 
   const additional_info_textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -52,12 +52,8 @@ export function TripForm({ user }: { user: User }) {
     setHasUnsavedChanges(false);
     const formDataObject = Object.fromEntries(formData.entries());
 
-    formDataObject["trip_arrival_date"] = arrivalDate
-      ? format(arrivalDate, "yyyy-MM-dd")
-      : "";
-    formDataObject["trip_departure_date"] = departureDate
-      ? format(departureDate, "yyyy-MM-dd")
-      : "";
+    formDataObject["trip_arrival_date"] = arrivalDate || "";
+    formDataObject["trip_departure_date"] = departureDate || "";
 
     const success = await updateTrip(formDataObject);
 
@@ -66,7 +62,7 @@ export function TripForm({ user }: { user: User }) {
         title: "Success",
         description: "Your profile has been updated successfully.",
       });
-      redirect("/schedule");
+      // redirect("/schedule");
     } else {
       toast({
         title: "Error",
@@ -75,7 +71,7 @@ export function TripForm({ user }: { user: User }) {
       });
     }
   }
-  
+
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
@@ -94,20 +90,20 @@ export function TripForm({ user }: { user: User }) {
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      const anchor = target.closest('a');
-      
+      const anchor = target.closest("a");
+
       if (!anchor) return;
-      
-      const href = anchor.getAttribute('href');
+
+      const href = anchor.getAttribute("href");
       if (href && href !== pathname) {
         if (hasUnsavedChanges) {
           e.preventDefault();
           e.stopPropagation();
-          
+
           const confirmed = window.confirm(
             "You have unsaved changes. Are you sure you want to leave?"
           );
-          
+
           if (confirmed) {
             router.push(href);
           }
@@ -115,11 +111,11 @@ export function TripForm({ user }: { user: User }) {
       }
     };
 
-    document.addEventListener('click', handleClick, true);
-    return () => document.removeEventListener('click', handleClick, true);
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
   }, [hasUnsavedChanges, pathname, router]);
 
-  const handleInputChange = () => {    
+  const handleInputChange = () => {
     setHasUnsavedChanges(true);
   };
 

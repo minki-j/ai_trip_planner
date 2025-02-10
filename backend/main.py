@@ -86,15 +86,18 @@ async def update_trip(request: Request):
         return {"error": "No form data provided"}
 
     # convert string to list
-    form_data["user_interests"] = [
-        item.strip() for item in form_data["user_interests"].split(",") if item.strip()
-    ]
-
-    form_data["trip_fixed_schedules"] = [
-        schedule.strip()
-        for schedule in form_data["trip_fixed_schedules"].split("\n")
-        if schedule.strip()
-    ]
+    if "user_interests" in form_data:
+        form_data["user_interests"] = [
+            item.strip()
+            for item in form_data["user_interests"].split(",")
+            if item.strip()
+        ]
+    if "trip_fixed_schedules" in form_data:
+        form_data["trip_fixed_schedules"] = [
+            schedule.strip()
+            for schedule in form_data["trip_fixed_schedules"].split("\n")
+            if schedule.strip()
+        ]
 
     compiled_entry_graph = await compile_graph_with_async_checkpointer(
         entry_graph, "entry"
@@ -103,8 +106,18 @@ async def update_trip(request: Request):
 
     # get previous state and cache it to previous_state_before_update field
     previous_state = await compiled_entry_graph.aget_state(config)
+    previous_state = previous_state.values
 
-    form_data["previous_state_before_update"] = json.dumps(previous_state.values)
+    #! TODO: Nedd to keep this variable for modify feature later
+    # form_data["updated_trip_information"] = ", ".join(
+    #     [
+    #         f"Trip information on '{key}' was originally '{previous_state[key]}', but updated to '{value}'"
+    #         for key, value in form_data.items() if key != "id"
+    #     ]
+    # )
+
+    print("trip_arrival_date: ", form_data["trip_arrival_date"])
+    print("trip_departure_date: ", form_data["trip_departure_date"])
 
     # update the state with form data
     await compiled_entry_graph.aupdate_state(config, form_data)
@@ -149,9 +162,7 @@ async def reset_state(user: dict = Depends(get_current_user_http)):
         {
             "stage": Stage.FIRST_GENERATION,
             "previous_state_before_update": "",
-            "messages": ["RESET_LIST"],
             "internet_search_results": ["RESET_LIST"],
-            "activities": ["RESET_LIST"],
             "schedule": ["RESET_LIST"],
         },
     )
@@ -174,7 +185,7 @@ async def get_graph_state(user: dict = Depends(get_current_user_http)):
     config = {"configurable": {"thread_id": user["id"]}}
     state = await compiled_entry_graph.aget_state(config, subgraphs=True)
     state = state.values
-    print(f"\n\n>>> GRAPH STATE:\n{state}\n\n")
+    # print(f"\n\n>>> GRAPH STATE:\n{state[""]}\n\n")
 
     if not state:
         return None
@@ -195,13 +206,24 @@ async def generate_schedule_ws(websocket: WebSocket):
 
         workflow = await compile_graph_with_async_checkpointer(entry_graph, "entry")
 
-        async for stream_mode, data in workflow.astream(
+        async for graph_namespace, stream_mode, data in workflow.astream(
             {"input": "!! This message is just to avoid empty graph invocation."},
-            stream_mode=["custom"],
+            stream_mode=["custom", "updates"],
             config={"recursion_limit": 50, "configurable": {"thread_id": user["id"]}},
+            subgraphs=True,
         ):
             if stream_mode == "custom":
+                data["data_type"] = "reasoning_steps"
                 await websocket.send_json(data)
+            else:
+                if update_dict := (
+                    data.get("add_terminal_time_to_schedule")
+                    or data.get("slot_in_schedule")
+                ):
+                    for schedule in update_dict["schedule"]:
+                        await websocket.send_json(
+                            {**schedule.model_dump(), "data_type": "schedule"}
+                        )
 
     except Exception as e:
         import traceback

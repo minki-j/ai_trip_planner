@@ -22,8 +22,8 @@ class ScheduleItemType(str, Enum):
     OTHER = "other"
 
 class TimeSlot(BaseModel):
-    start_time: datetime.datetime
-    end_time: datetime.datetime | None
+    start_time: str = Field(description="YYYY-MM-DD HH:MM")
+    end_time: str | None = Field(description="YYYY-MM-DD HH:MM")
 
 class ScheduleItem(BaseModel):
     id: int
@@ -100,16 +100,15 @@ class InputState(BaseModel):
 
 class OverallState(InputState):
     stage: Stage = Stage.FIRST_GENERATION
-    previous_state_before_update: str = Field(default=None)
 
     internet_search_results: Annotated[list[dict], extend_list] = Field(
         default_factory=list
     )
-
-    activities: Annotated[list[dict], extend_list] = Field(default_factory=list)
 
     schedule: Annotated[list[ScheduleItem], insert_schedule] = Field(
         default_factory=list
     )
 
     slot_in_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(default_factory=list)
+
+    updated_trip_information: Annotated[list[str], extend_list] = Field(default_factory=list)

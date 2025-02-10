@@ -14,12 +14,21 @@ import {
 } from "@/components/ui/popover";
 
 interface DatePickerProps {
-  value?: Date;
-  onChange?: (date: Date | undefined) => void;
-  name?: string;
+  value?: string;
+  onChange?: (date: string | undefined) => void;
 }
 
-export function DatePicker({ value, onChange, name }: DatePickerProps) {
+export function DatePicker({ value, onChange }: DatePickerProps) {
+  let date_value: Date | undefined;
+  if (value) {
+    const numeric_value: number[] = [];
+    value?.split("-").forEach((num) => numeric_value.push(Number(num)));
+    date_value = new Date(
+      numeric_value[0],
+      numeric_value[1] - 1,
+      numeric_value[2]
+    );
+  }
 
   return (
     <Popover>
@@ -31,16 +40,16 @@ export function DatePicker({ value, onChange, name }: DatePickerProps) {
             !value && "text-muted-foreground"
           )}
         >
-          {value ? format(value, "PPP") : <span>Pick a date</span>}
+          {value || <span>Pick a date</span>}
           <CalendarIcon className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
-          selected={value}
+          selected={value ? date_value : undefined}
           onSelect={(date) => {
-            onChange?.(date);
+            onChange?.(date ? date.toISOString().split("T")[0] : undefined);
           }}
           initialFocus
         />

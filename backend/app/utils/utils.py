@@ -15,16 +15,16 @@ def convert_messages_to_string(messages: AnyMessage) -> str:
     )
 
 
-def convert_schedule_item_to_string(schedule_items: list[ScheduleItem]) -> str:
+def convert_schedule_items_to_string(schedule_items: list[ScheduleItem]) -> str:
 
     schedule_items.sort(key=lambda x: (x.time.start_time))
 
     result = []
     for item in schedule_items:
-        content = f"- Id:{item.id} | Time:{item.time.start_time}"
+        content = f"- ID:{item.id} | Time:{item.time.start_time}"
         
         if item.time.end_time:
-            content += f" ~ {item.time.end_time}"
+            content += f"~{item.time.end_time}"
         
         content += f" | Type:{item.type.value} | Title:{item.title} | Location:{item.location}"
 
@@ -33,4 +33,4 @@ def convert_schedule_item_to_string(schedule_items: list[ScheduleItem]) -> str:
 
         result.append(content)
 
-    return "\n\n".join(result).strip() or "NO SCHEDULE ITEMS PROVIDED!"
+    return "\n".join(result).strip() or "NO SCHEDULE ITEMS PROVIDED!"

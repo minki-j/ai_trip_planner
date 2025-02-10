@@ -27,20 +27,20 @@ interface ReasoningStep {
 
 export default function SchedulePage() {
   const { data: session, status } = useSession();
-  const [activities, setActivities] = useState<ScheduleItem[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showReasoningSteps, setShowReasoningSteps] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchInitialActivities = async () => {
+    setIsLoading(true);
+    const fetchInitialSchedules = async () => {
       const state = await getGraphState();
-      setActivities(state.schedule);
+      setSchedules(state.schedule);
     };
 
-    fetchInitialActivities();
-    setIsLoading(false);
+    fetchInitialSchedules().finally(() => setIsLoading(false));
   }, []);
 
   const { toast } = useToast();
@@ -100,7 +100,8 @@ export default function SchedulePage() {
 
       websocket.onmessage = async (event) => {
         const response = JSON.parse(event.data);
-        // console.log("WebSocket response: ", response);
+        console.log("WebSocket response: ", response);
+
         if (!response) return;
         if (response.error) {
           console.error("Error:", response.error);
@@ -112,7 +113,13 @@ export default function SchedulePage() {
           });
           return;
         }
-        setReasoningSteps((prevSteps) => [response, ...prevSteps]);
+
+        if (response.data_type == "reasoning_steps") {
+          setReasoningSteps((prevSteps) => [...prevSteps, response]);
+        } else if (response.data_type == "schedule") {
+          delete response.data_type;
+          setSchedules((prevSchedules) => [...prevSchedules, response]);
+        }
       };
     } catch (error: any) {
       if (websocket.readyState !== WebSocket.CLOSED) {
@@ -135,11 +142,46 @@ export default function SchedulePage() {
 
   return (
     <>
+      {/* Reasoning Steps */}
+      {reasoningSteps.length > 0 && showReasoningSteps && (
+        <div className="p-4 space-y-4 h-[75vh] overflow-y-scroll scrollbar-show bg-gray-100">
+          <h2 className="text-lg font-semibold mb-4">Reasoning Steps</h2>
+          {reasoningSteps.map((step, index) => (
+            <div key={index} className="border-l-2 border-primary/20 pl-4 py-2">
+              <h3 className="text-sm font-medium text-primary mb-2">
+                {step.title}
+              </h3>
+              <ReactMarkdown
+                components={{
+                  p: ({ node, children }) => (
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {children}
+                    </p>
+                  ),
+                  ul: ({ node, children }) => (
+                    <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                      {children}
+                    </ul>
+                  ),
+                  ol: ({ node, children }) => (
+                    <ol className="list-decimal pl-4 space-y-1 text-sm text-muted-foreground">
+                      {children}
+                    </ol>
+                  ),
+                }}
+                className="prose prose-sm max-w-none prose-neutral dark:prose-invert"
+              >
+                {step.description}
+              </ReactMarkdown>
+            </div>
+          ))}
+        </div>
+      )}
       {/* Show/Hide reasoning steps button */}
       {reasoningSteps.length > 0 ? (
         <button
           onClick={() => setShowReasoningSteps(!showReasoningSteps)}
-          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-100"
+          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-200"
           aria-label={
             showReasoningSteps ? "Hide reasoning steps" : "Show reasoning steps"
           }
@@ -167,64 +209,25 @@ export default function SchedulePage() {
           </div>
         </button>
       ) : (
-        <div className="w-full py-1 flex justify-center items-center text-white">
+        <div className="w-full py-1 flex justify-center items-center text-white bg-gray-100">
           <span className="text-sm">No reasoning steps available</span>
         </div>
       )}
 
       <div className="container mx-auto max-w-3xl px-4">
-        {/* Reasoning Steps */}
-        {reasoningSteps.length > 0 && showReasoningSteps && (
-          <div className="bg-card rounded-lg p-4 shadow-sm space-y-4">
-            <h2 className="text-lg font-semibold mb-4">Reasoning Steps</h2>
-            {reasoningSteps.map((step, index) => (
-              <div
-                key={index}
-                className="border-l-2 border-primary/20 pl-4 py-2"
-              >
-                <h3 className="text-sm font-medium text-primary mb-2">
-                  {step.title}
-                </h3>
-                <ReactMarkdown
-                  components={{
-                    p: ({ node, children }) => (
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {children}
-                      </p>
-                    ),
-                    ul: ({ node, children }) => (
-                      <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
-                        {children}
-                      </ul>
-                    ),
-                    ol: ({ node, children }) => (
-                      <ol className="list-decimal pl-4 space-y-1 text-sm text-muted-foreground">
-                        {children}
-                      </ol>
-                    ),
-                  }}
-                  className="prose prose-sm max-w-none prose-neutral dark:prose-invert"
-                >
-                  {step.description}
-                </ReactMarkdown>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Main content */}
         <div className="space-y-6">
-          {activities.length > 0 ? (
+          {schedules.length > 0 ? (
             <div className="bg-card rounded-lg pr-2">
               {isEditMode ? (
-                <ScheduleForm initialActivities={activities} />
+                <ScheduleForm initialSchedules={schedules} />
               ) : (
-                <ScheduleDisplay activities={activities} />
+                <ScheduleDisplay schedules={schedules} />
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 bg-muted/50 rounded-lg">
-              <p className="text-muted-foreground">No activities to display</p>
+            <div className="flex flex-col items-center justify-center py-12 bg-muted/50 rounded-lg mt-4">
+              <p className="text-muted-foreground">No schedules to display</p>
             </div>
           )}
 

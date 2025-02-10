@@ -23,10 +23,11 @@ import { resetAgentStateAction } from "../app/schedule/actions";
 export function Navigation() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { setTheme, theme } = useTheme();
 
   const resetAgentState = () => {
-    resetAgentStateAction();
+    resetAgentStateAction().finally(() => {
+      window.location.reload();
+    });
   };
 
   const links = [

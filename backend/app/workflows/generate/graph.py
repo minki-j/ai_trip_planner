@@ -34,11 +34,15 @@ from app.models import Role
 
 from app.workflows.tools.internet_search import internet_search
 
-from app.utils.utils import convert_schedule_item_to_string
+from app.utils.utils import convert_schedule_items_to_string
+
+MAX_NUM_OF_QUERIES = 3
+MAX_NUM_OF_SCHEDULES = 15
 
 
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
-    return {}
+    return {"trip_free_hours": 40}
+
     print("\n>>> NODE: calculate_how_many_schedules")
 
     class FreeHourResponse(BaseModel):
@@ -91,15 +95,12 @@ def add_terminal_time_to_schedule(state: OverallState):
     Departure info: {state.trip_departure_date} {state.trip_departure_time}"""
 
     class TimeConvertOutput(BaseModel):
-        arrival_time: list[int]
-        departure_time: list[int]
+        arrival_time: str = Field(description="YYYY-MM-DD HH:MM")
+        departure_time: str = Field(description="YYYY-MM-DD HH:MM")
 
     response: TimeConvertOutput = chat_model.with_structured_output(
         TimeConvertOutput
     ).invoke(prompt)
-
-    arrival_time = datetime.datetime(*response.arrival_time)
-    departure_time = datetime.datetime(*response.departure_time)
 
     return {
         "schedule": [
@@ -107,7 +108,7 @@ def add_terminal_time_to_schedule(state: OverallState):
                 id=1,
                 type=ScheduleItemType.TERMINAL,
                 time=TimeSlot(
-                    start_time=arrival_time,
+                    start_time=response.arrival_time,
                     end_time=None,
                 ),
                 location="29 Broadway",
@@ -118,7 +119,7 @@ def add_terminal_time_to_schedule(state: OverallState):
                 id=2,
                 type=ScheduleItemType.TERMINAL,
                 time=TimeSlot(
-                    start_time=departure_time,
+                    start_time=response.departure_time,
                     end_time=None,
                 ),
                 location="231 Broadway",
@@ -210,7 +211,7 @@ async def generate_queries(state: LoopState, writer: StreamWriter):
             [
                 *state.message_list,
                 HumanMessage(
-                    f"""Read my trip information carefully, and generate upto {(state.trip_free_hours or 20) // 10} queries to look up information on the internet. Make sure each query don't overlap with the other ones."""
+                    f"""Read my trip information carefully, and generate upto {state.trip_free_hours // 10} queries to look up information on the internet. Make sure each query don't overlap with the other ones."""
                 ),
             ]
         )
@@ -267,11 +268,14 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
         | chat_model.with_structured_output(ValidateAndImproveQueries)
     ).invoke({})
 
-    if response.is_current_queries_good_enough or len(state.queries) >= 3:
+    if (
+        response.is_current_queries_good_enough
+        or len(state.queries) >= MAX_NUM_OF_QUERIES
+    ):
         return Command(
             goto=[
                 Send(n(internet_search), {**state.model_dump(), "query": query.query})
-                for query in state.queries[:2]
+                for query in state.queries[:]
             ]
         )
     else:
@@ -290,10 +294,8 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
                 )
                 queries.append(new_query)
             elif action.type == ActionsType.REMOVE:
-                # Find and remove query by ID
                 queries[:] = [q for q in queries if q.id != action.query_id]
             elif action.type == ActionsType.MODIFY:
-                # Find and modify query by ID
                 for query in queries:
                     if query.id == action.query_id:
                         query.query = action.new_query_value
@@ -304,7 +306,7 @@ def validate_and_improve_queries(state: LoopState, writer: StreamWriter):
                 "title": "Validation result",
                 "description": "\n".join(
                     [
-                        f"- **Action:** {action.type.value} // **Rationale:** {action.rationale} // **New query:** {action.new_query_value}"
+                        f"- {action.rationale} / {action.type.value} query with id {action.query_id} -> {action.new_query_value}"
                         for action in response.actions
                         if action.type != ActionsType.SKIP
                     ]
@@ -350,8 +352,6 @@ def init_slot_in_schedule_loop(state: OverallState, writer: StreamWriter):
 
     system_prompt = SystemMessage(
         """You are an AI tour planner. You are going to arrange a schedule for a user's trip. 
-
----
 
 Here are some details about the trip:
 
@@ -402,8 +402,8 @@ You can add, modify, or remove items in the schedule.
 
 
 def slot_in_schedule(state: OverallState, writer: StreamWriter):
-    if len(state.schedule) >= 5:
-        print("Terminate slot_in_schedule")
+    if len(state.schedule) >= MAX_NUM_OF_SCHEDULES:
+        print("\n>>> Terminate slot_in_schedule")
         return Command(
             goto="__end__",
         )
@@ -415,19 +415,25 @@ def slot_in_schedule(state: OverallState, writer: StreamWriter):
 
     messages.append(
         HumanMessage(
-            f"Slot an item in the empty schedule. Here is my current schedule:\n\n{convert_schedule_item_to_string(state.schedule)}"
+            f"Slot an item in the empty schedule. Here is my current schedule:\n\n{convert_schedule_items_to_string(state.schedule)}"
         )
     )
 
-    response: ScheduleItem = (
+    class SlotInScheduleAction(BaseModel):
+        reasining_stage: str = Field(
+            description="Before creating the schedule item, think out loud your reasoning behind this action."
+        )
+        schedule_item: ScheduleItem
+
+    response: SlotInScheduleAction = (
         ChatPromptTemplate.from_messages(messages)
-        | chat_model.with_structured_output(ScheduleItem)
+        | chat_model.with_structured_output(SlotInScheduleAction)
     ).invoke({})
 
     writer(
         {
-            # "title": "Slot in schedule",
-            "description": convert_schedule_item_to_string([response]),
+            "title": convert_schedule_items_to_string([response.schedule_item]),
+            "description": response.reasining_stage,
         }
     )
 
@@ -436,9 +442,9 @@ def slot_in_schedule(state: OverallState, writer: StreamWriter):
         update={
             "slot_in_schedule_loop_messages": [
                 messages[-1],  # HumanMessage
-                AIMessage(response.model_dump_json()),
+                AIMessage(response.schedule_item.model_dump_json()),
             ],
-            "schedule": [response],
+            "schedule": [response.schedule_item],
         },
     )
 
