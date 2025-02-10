@@ -19,7 +19,7 @@ export interface User {
   trip_end_of_day_at: string;
   
   trip_location: string;
-  trip_accomodation_location: string;
+  trip_accommodation_location: string;
 
   trip_budget: string;
   trip_theme: string;
@@ -72,7 +72,7 @@ const UserSchema = new mongoose.Schema<User>({
     type: String,
     default: "",
   },
-  trip_accomodation_location: {
+  trip_accommodation_location: {
     type: String,
     default: "",
   },

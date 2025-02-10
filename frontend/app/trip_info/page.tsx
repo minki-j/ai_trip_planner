@@ -43,7 +43,7 @@ export default async function ProfilePage() {
     trip_end_of_day_at: state.trip_end_of_day_at,
     
     trip_location: state.trip_location,
-    trip_accomodation_location: state.trip_accomodation_location,
+    trip_accommodation_location: state.trip_accommodation_location,
     
     trip_budget: state.trip_budget,
     trip_theme: state.trip_theme,

@@ -6,7 +6,7 @@ export enum ScheduleItemType {
   MUSEUM_GALLERY = "museum_gallery",
   STREETS = "streets",
   HISTORICAL_SITE = "historical_site",
-  REMOVE = "remove",
+  MEAL = "meal",
   OTHER = "other",
 }
 

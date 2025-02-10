@@ -36,7 +36,7 @@ export default function SchedulePage() {
   
   useEffect(() => {
     if (stepsContainerRef.current && reasoningSteps.length > 0) {
-      stepsContainerRef.current.scrollTop = 0;
+      // stepsContainerRef.current.scrollTop = 0;
     }
   }, [reasoningSteps]);
 

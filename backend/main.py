@@ -14,13 +14,14 @@ from langchain_core.messages import AnyMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from app.llms import openai_chat_model
+from app.llms import chat_model
 from app.models import Stage
 from app.utils.compile_graph import compile_graph_with_async_checkpointer
 from app.workflows.entry_graph import g as entry_graph
 from app.workflows.generate.graph import (
     add_fixed_schedules,
     slot_in_schedule,
+    add_terminal_schedules,
 )
 
 
@@ -119,9 +120,6 @@ async def update_trip(request: Request):
     #         for key, value in form_data.items() if key != "id"
     #     ]
     # )
-
-    print("trip_arrival_date: ", form_data["trip_arrival_date"])
-    print("trip_departure_date: ", form_data["trip_departure_date"])
 
     # update the state with form data
     await compiled_entry_graph.aupdate_state(config, form_data)
@@ -226,7 +224,9 @@ async def generate_schedule_ws(websocket: WebSocket):
                 await websocket.send_json(data)
             else:
                 if update_dict := (
-                    data.get(n(add_fixed_schedules)) or data.get(n(slot_in_schedule))
+                    data.get(n(add_fixed_schedules))
+                    or data.get(n(add_terminal_schedules))
+                    or data.get(n(slot_in_schedule))
                 ):
                     for schedule in update_dict["schedule_list"]:
                         await websocket.send_json(

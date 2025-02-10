@@ -92,8 +92,8 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
       [ScheduleItemType.MUSEUM_GALLERY]: "bg-pink-100",
       [ScheduleItemType.STREETS]: "bg-orange-100",
       [ScheduleItemType.HISTORICAL_SITE]: "bg-red-100",
+      [ScheduleItemType.MEAL]: "bg-teal-100",
       [ScheduleItemType.OTHER]: "bg-gray-100",
-      [ScheduleItemType.REMOVE]: "bg-gray-100",
     };
     return colors[type] || "bg-gray-100";
   };

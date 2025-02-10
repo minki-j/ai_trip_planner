@@ -24,37 +24,25 @@ def internet_search(state: InternetSearchState, writer: StreamWriter):
     prompt = """
 You are an AI tour planner doing some research for the user.
 
-The user will be visiting {trip_location} (staying at {trip_accomodation_location}). The user wants the trip to be {trip_budget}.
+The user will be visiting {trip_location}, staying at {trip_accommodation_location}, from {trip_arrival_date}  {trip_arrival_time} to {trip_departure_date}  {trip_departure_time}. They prefer a {trip_budget} trip and plan to start their day at {trip_start_of_day_at} and end it at {trip_end_of_day_at}.
 
-- The user's arrival details:
-  Date: {trip_arrival_date}
-  Time: {trip_arrival_time}
-  Terminal: {trip_arrival_terminal}
-
-- The user's departure details:
-  Date: {trip_departure_date}
-  Time: {trip_departure_time}
-  Terminal: {trip_departure_terminal}
-
-- Daily schedule:
-  Start of day: {trip_start_of_day_at}
-  End of day: {trip_end_of_day_at}
-
-- There are fixed schedules that the user has to follow:
-{trip_fixed_schedules}
 
 ---
 
-Now, collect information about the following query: 
+
+Now here is your task: Collect information about the following query.
 {query}
 
 
 ---
 
-## Important Rules
+
+Important Rules
 - Keep in mind the user's trip information, and sort the results in a way that the most relevant information is at the top.
 - You don't need to plan the full schedule, just collect information about the query.
 - Make sure only include information that is available from {trip_arrival_date} {trip_arrival_time} to {trip_departure_date} {trip_departure_time}.
+- Do not include citations.
+- If possible (without making anything up), include practical tips for each tour recommendation, such as signature dishes to order, best photo spots, ways to get cheaper or easier tickets, best times to avoid crowds, portion sizes to expect, local customs or etiquette to be aware of, transportation tips, weather considerations, common scams or tourist traps to avoid, and unique souvenirs to look for.
     """.format(
         **state.model_dump()
     )

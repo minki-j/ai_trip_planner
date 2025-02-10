@@ -289,16 +289,16 @@ export function TripForm({ user }: { user: User }) {
 
       <div className="space-y-2">
         <Label
-          htmlFor="trip_accomodation_location"
+          htmlFor="trip_accommodation_location"
           className="block text-sm font-medium"
         >
-          Accomodation Location
+          accommodation Location
         </Label>
         <Input
-          id="trip_accomodation_location"
-          name="trip_accomodation_location"
+          id="trip_accommodation_location"
+          name="trip_accommodation_location"
           required
-          defaultValue={user.trip_accomodation_location ?? ""}
+          defaultValue={user.trip_accommodation_location ?? ""}
           placeholder="e.g. 2658 Broadway"
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />

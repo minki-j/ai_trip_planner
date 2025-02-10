@@ -49,7 +49,8 @@ def calculate_empty_slots(
     from datetime import datetime, timedelta
 
     if not schedule_items:
-        raise ValueError("Schedule_items is not provided")
+        print("\n\nWarning: Schedule_items is not provided.\n\n")
+        return None
 
     start_of_day_hour, start_of_day_minute = [
         int(x) for x in trip_start_of_day_at.split(":")
@@ -62,7 +63,8 @@ def calculate_empty_slots(
         schedule_items[0].type != ScheduleItemType.TERMINAL
         or schedule_items[-1].type != ScheduleItemType.TERMINAL
     ):
-        raise ValueError("First and last items must be terminals.")
+        print("\n\nWarning: First and last items must be terminals.\n\n")
+        return None
 
     intervals = []
     for item in schedule_items:
@@ -131,7 +133,8 @@ def calculate_empty_slots(
             current_slot[1] + slot_duration,
         ]
     if not free_slots:
-        return "No free slots in the schedule"
+        print("calculate_empty_slots: No free slots are available. Returning None.")
+        return None
 
     # lump together free slots that are next to each other
     free_slots.sort(key=lambda x: x[0])

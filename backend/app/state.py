@@ -17,8 +17,9 @@ class ScheduleItemType(str, Enum):
     MUSEUM_GALLERY = "museum_gallery"
     STREETS = "streets"
     HISTORICAL_SITE = "historical_site"
-    REMOVE = "remove"
+    MEAL = "meal"
     OTHER = "other"
+    REMOVE = "remove"
 
 class ScheduleItemTime(BaseModel):
     start_time: str = Field(description="YYYY-MM-DD HH:MM")
@@ -84,7 +85,7 @@ class InputState(BaseModel):
     trip_end_of_day_at: str = Field(default=None, description="HH:MM")
 
     trip_location: str = Field(default=None)
-    trip_accomodation_location: str = Field(default=None)
+    trip_accommodation_location: str = Field(default=None)
 
     trip_budget: str = Field(default=None)
     trip_theme: str = Field(default=None)

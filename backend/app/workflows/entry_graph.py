@@ -12,7 +12,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.runnables import RunnablePassthrough, RunnableParallel
 
 from app.state import OverallState
-from app.llms import openai_chat_model
+from app.llms import chat_model
 
 from app.models import Stage
 
