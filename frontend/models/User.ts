@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { ScheduleItem, ScheduleItemType, ScheduleItemTime } from "./Schedule";
 
 export interface User {
   id: string;
@@ -14,16 +15,16 @@ export interface User {
   trip_departure_date: string;
   trip_departure_time: string;
   trip_departure_terminal: string;
-  
+
   trip_start_of_day_at: string;
   trip_end_of_day_at: string;
-  
+
   trip_location: string;
   trip_accommodation_location: string;
 
   trip_budget: string;
   trip_theme: string;
-  trip_fixed_schedules: string[];
+  trip_fixed_schedules: ScheduleItem[];
 }
 
 const UserSchema = new mongoose.Schema<User>({

@@ -127,22 +127,7 @@ def add_fixed_schedules(state: OverallState):
         return {}
     print("\n>>> NODE: add_fixed_schedules")
 
-    prompt = f"""
-Convert the following schedules into ScheduleItem format. 
-For fields that are not provided, you can leave them empty.
-
-Schedules to convert:
-{state.trip_fixed_schedules}
-    """
-
-    class ConvertFixedSchedule(BaseModel):
-        converted_schedule: list[ScheduleItem]
-
-    response: ConvertFixedSchedule = chat_model.with_structured_output(
-        ConvertFixedSchedule
-    ).invoke(prompt)
-
-    return {"schedule_list": response.converted_schedule}
+    return {"schedule_list": state.trip_fixed_schedules}
 
 
 def init_generate_queries_validation_loop(state: OverallState, writer: StreamWriter):

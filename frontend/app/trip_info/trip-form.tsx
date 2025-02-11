@@ -21,6 +21,7 @@ import {
 import { updateTrip } from "./actions";
 
 import { User } from "@/models/User";
+import { ScheduleItem, ScheduleItemType } from "@/models/Schedule";
 
 export function TripForm({ user }: { user: User }) {
   const { toast } = useToast();
@@ -28,9 +29,24 @@ export function TripForm({ user }: { user: User }) {
   const pathname = usePathname();
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const [fixedSchedules, setFixedSchedules] = useState<string[]>(
-    user.trip_fixed_schedules || []
+  const [fixedSchedules, setFixedSchedules] = useState<ScheduleItem[]>(
+    user.trip_fixed_schedules
   );
+  const newSchedulePlaceholder = {
+    id: 9999, // start from 9999 and go down
+    type: ScheduleItemType.EVENT,
+    time: { start_time: new Date(), end_time: null },
+    location: "",
+    title: "",
+    description: null,
+    suggestion: null,
+  };
+  const [newSchedule, setNewSchedule] = useState<ScheduleItem>(
+    newSchedulePlaceholder
+  );
+  const [showNewFixedScheduleForm, setShowNewFixedScheduleForm] =
+    useState(false);
+
   const [arrivalDate, setArrivalDate] = useState<string | undefined>(
     user.trip_arrival_date || undefined
   );
@@ -52,6 +68,8 @@ export function TripForm({ user }: { user: User }) {
 
     formDataObject["trip_arrival_date"] = arrivalDate || "";
     formDataObject["trip_departure_date"] = departureDate || "";
+
+    console.log("formDataObject: ", formDataObject);
 
     const success = await updateTrip(formDataObject);
 
@@ -292,7 +310,7 @@ export function TripForm({ user }: { user: User }) {
           htmlFor="trip_accommodation_location"
           className="block text-sm font-medium"
         >
-          accommodation Location
+          Accommodation Location
         </Label>
         <Input
           id="trip_accommodation_location"
@@ -346,70 +364,250 @@ export function TripForm({ user }: { user: User }) {
           Fixed Schedules
         </Label>
         <div className="space-y-2">
-          <div className="space-y-2">
-            {fixedSchedules.map((schedule, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-2 border p-2 rounded-md"
-              >
-                <span className="flex-1 text-sm">{schedule}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newSchedules = fixedSchedules.filter(
-                      (_, i) => i !== index
-                    );
+          {fixedSchedules.length > 0 && (
+            <div className="space-y-2">
+              {fixedSchedules.map((schedule, index) => (
+                <div
+                  key={index}
+                  className="flex flex-col gap-2 border p-4 rounded-md"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{schedule.title}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const newSchedules = fixedSchedules.filter(
+                          (_, i) => i !== index
+                        );
+                        const hiddenInput = document.getElementById(
+                          "trip_fixed_schedules"
+                        ) as HTMLInputElement;
+                        hiddenInput.value = JSON.stringify(newSchedules);
+                        setFixedSchedules(newSchedules);
+                      }}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                  <div className="text-sm text-muted-foreground grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="font-medium">Type:</span> {schedule.type}
+                    </div>
+                    <div>
+                      <span className="font-medium">Location:</span>{" "}
+                      {schedule.location}
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-medium">Time:</span>{" "}
+                      {new Date(schedule.time.start_time).toLocaleString()}
+                      {schedule.time.end_time && (
+                        <>
+                          {" "}
+                          - {new Date(schedule.time.end_time).toLocaleString()}
+                        </>
+                      )}
+                    </div>
+                    {schedule.description && (
+                      <div className="col-span-2">
+                        <span className="font-medium">Description:</span>{" "}
+                        {schedule.description}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {showNewFixedScheduleForm ? (
+            <div className="space-y-2 border p-4 rounded-md bg-gray-50">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-2">
+                  <Label htmlFor="schedule_type">Type</Label>
+                  <select
+                    id="schedule_type"
+                    className="w-full p-2 border rounded-md"
+                    value={newSchedule.type}
+                    onChange={(e) =>
+                      setNewSchedule((prev) => ({
+                        ...prev,
+                        type: e.target.value as ScheduleItemType,
+                      }))
+                    }
+                  >
+                    {Object.values(ScheduleItemType).map((type) => (
+                      <option key={type} value={type}>
+                        {type.replace(/_/g, " ").toLowerCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="schedule_location">Location</Label>
+                  <Input
+                    id="schedule_location"
+                    value={newSchedule.location}
+                    onChange={(e) =>
+                      setNewSchedule((prev) => ({
+                        ...prev,
+                        location: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter location"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="schedule_start_time">Start Time</Label>
+                  <Input
+                    id="schedule_start_time"
+                    type="datetime-local"
+                    value={
+                      newSchedule.time.start_time instanceof Date
+                        ? newSchedule.time.start_time.getFullYear() +
+                          "-" +
+                          String(
+                            newSchedule.time.start_time.getMonth() + 1
+                          ).padStart(2, "0") +
+                          "-" +
+                          String(
+                            newSchedule.time.start_time.getDate()
+                          ).padStart(2, "0") +
+                          "T" +
+                          String(
+                            newSchedule.time.start_time.getHours()
+                          ).padStart(2, "0") +
+                          ":" +
+                          String(
+                            newSchedule.time.start_time.getMinutes()
+                          ).padStart(2, "0")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setNewSchedule((prev) => ({
+                        ...prev,
+                        time: {
+                          ...prev.time,
+                          start_time: new Date(e.target.value),
+                        },
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="schedule_end_time">End Time</Label>
+                  <Input
+                    id="schedule_end_time"
+                    type="datetime-local"
+                    value={
+                      newSchedule.time.end_time instanceof Date
+                        ? newSchedule.time.end_time.getFullYear() +
+                          "-" +
+                          String(
+                            newSchedule.time.end_time.getMonth() + 1
+                          ).padStart(2, "0") +
+                          "-" +
+                          String(
+                            newSchedule.time.end_time.getDate()
+                          ).padStart(2, "0") +
+                          "T" +
+                          String(
+                            newSchedule.time.end_time.getHours()
+                          ).padStart(2, "0") +
+                          ":" +
+                          String(
+                            newSchedule.time.end_time.getMinutes()
+                          ).padStart(2, "0")
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setNewSchedule((prev) => ({
+                        ...prev,
+                        time: {
+                          ...prev.time,
+                          end_time: new Date(e.target.value),
+                        },
+                      }))
+                    }
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="schedule_title">Title</Label>
+                  <Input
+                    id="schedule_title"
+                    value={newSchedule.title}
+                    onChange={(e) =>
+                      setNewSchedule((prev) => ({
+                        ...prev,
+                        title: e.target.value,
+                      }))
+                    }
+                    placeholder="Enter title"
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="schedule_description">
+                    Description (Optional)
+                  </Label>
+                  <textarea
+                    id="schedule_description"
+                    className="w-full p-2 border rounded-md"
+                    value={newSchedule.description || ""}
+                    onChange={(e) =>
+                      setNewSchedule((prev) => ({
+                        ...prev,
+                        description: e.target.value || null,
+                      }))
+                    }
+                    placeholder="Enter description"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="default"
+                className="w-full"
+                onClick={() => {
+                  if (
+                    newSchedule.title &&
+                    newSchedule.location &&
+                    newSchedule.time.start_time
+                  ) {
+                    const schedule = {
+                      ...newSchedule,
+                      id: 9999 - fixedSchedules.length, // start from 9999 and go down
+                      suggestion: null,
+                    };
+                    const newSchedules = [...fixedSchedules, schedule];
                     const hiddenInput = document.getElementById(
                       "trip_fixed_schedules"
                     ) as HTMLInputElement;
-                    hiddenInput.value = newSchedules.join("\n");
-                    setFixedSchedules((prev) => prev.concat(newSchedules));
-                  }}
-                >
-                  ✕
-                </Button>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Input
-              id="schedule_input"
-              placeholder="e.g. Feb/22 7AM-12PM, Meeting with client"
-              className="flex-1"
-            />
+                    hiddenInput.value = JSON.stringify(newSchedules);
+                    setFixedSchedules(newSchedules);
+                    setNewSchedule(newSchedulePlaceholder);
+                    setShowNewFixedScheduleForm(false);
+                  }
+                }}
+              >
+                Add
+              </Button>
+            </div>
+          ) : (
             <Button
               type="button"
               variant="secondary"
-              onClick={() => {
-                const input = document.getElementById(
-                  "schedule_input"
-                ) as HTMLInputElement;
-                const hiddenInput = document.getElementById(
-                  "trip_fixed_schedules"
-                ) as HTMLInputElement;
-                if (input.value.trim()) {
-                  const currentSchedules =
-                    hiddenInput?.value.split("\n").filter(Boolean) || [];
-                  const newSchedules = [
-                    ...currentSchedules,
-                    input.value.trim(),
-                  ];
-                  hiddenInput.value = newSchedules.join("\n");
-                  input.value = "";
-                  setFixedSchedules((prev) => prev.concat(newSchedules));
-                }
-              }}
+              className="w-full"
+              onClick={() => setShowNewFixedScheduleForm(true)}
             >
-              Add
+              Add Schedule
             </Button>
-          </div>
+          )}
           <input
             type="hidden"
             id="trip_fixed_schedules"
             name="trip_fixed_schedules"
-            value={user.trip_fixed_schedules?.join("\n") ?? ""}
+            value={JSON.stringify(fixedSchedules)}
           />
         </div>
       </div>

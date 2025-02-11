@@ -90,7 +90,7 @@ class InputState(BaseModel):
 
     trip_budget: str = Field(default=None)
     trip_theme: str = Field(default=None)
-    trip_fixed_schedules: list[str] = Field(default_factory=list)
+    trip_fixed_schedules: list[ScheduleItem] = Field(default_factory=list)
 
     trip_free_hours: int = Field(default=None)
 

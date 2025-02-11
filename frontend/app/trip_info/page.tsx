@@ -13,7 +13,7 @@ export default async function ProfilePage() {
     redirect("/");
   }
 
-  const state = await getGraphState();
+  const state = await getGraphState();  
 
   if (!state) {
     return (

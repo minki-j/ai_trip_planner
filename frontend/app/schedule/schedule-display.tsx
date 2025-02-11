@@ -112,8 +112,8 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
         icon: Plane,
       },
       [ScheduleItemType.TRANSPORT]: {
-        bg: "bg-yellow-50",
-        border: "border-yellow-200",
+        bg: "bg-green-50",
+        border: "border-green-200",
         icon: Bus,
       },
       [ScheduleItemType.WALK]: {
@@ -122,18 +122,18 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
         icon: Footprints,
       },
       [ScheduleItemType.EVENT]: {
-        bg: "bg-purple-50",
-        border: "border-purple-200",
+        bg: "bg-red-50",
+        border: "border-red-200",
         icon: Calendar,
       },
       [ScheduleItemType.MUSEUM_GALLERY]: {
-        bg: "bg-pink-50",
-        border: "border-pink-200",
+        bg: "bg-red-50",
+        border: "border-red-200",
         icon: Building,
       },
       [ScheduleItemType.STREETS]: {
-        bg: "bg-orange-50",
-        border: "border-orange-200",
+        bg: "bg-red-50",
+        border: "border-red-200",
         icon: Route,
       },
       [ScheduleItemType.HISTORICAL_SITE]: {
@@ -142,8 +142,8 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
         icon: Landmark,
       },
       [ScheduleItemType.MEAL]: {
-        bg: "bg-teal-50",
-        border: "border-teal-200",
+        bg: "bg-yellow-50",
+        border: "border-yellow-200",
         icon: UtensilsCrossed,
       },
       [ScheduleItemType.OTHER]: {

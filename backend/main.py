@@ -23,6 +23,7 @@ from app.workflows.generate.graph import (
     slot_in_schedule_loop,
     add_terminal_schedules,
 )
+from app.state import ScheduleItem
 
 
 async def get_current_user_websocket(websocket: WebSocket) -> Optional[dict]:
@@ -83,6 +84,26 @@ async def add_user(request: Request):
     return True
 
 
+@app.get("/graph_state")
+async def get_graph_state(user: dict = Depends(get_current_user_http)):
+
+    if not user:
+        return {"error": "No user provided or user not found"}
+
+    compiled_entry_graph = await compile_graph_with_async_checkpointer(
+        entry_graph, "entry"
+    )
+    config = {"configurable": {"thread_id": user["id"]}}
+    state = await compiled_entry_graph.aget_state(config, subgraphs=True)
+    state = state.values
+    #! GET GRAPH STATE print for debugging
+    print(f"\n\n>>> GRAPH STATE:\n{state}\n\n")
+
+    if not state:
+        return None
+    return state
+
+
 @app.post("/update_trip")
 async def update_trip(request: Request):
     form_data = await request.json()
@@ -91,18 +112,18 @@ async def update_trip(request: Request):
         return {"error": "No form data provided"}
 
     # convert string to list
-    if "user_interests" in form_data:
+    if "user_interests" in form_data and form_data["user_interests"]:
         form_data["user_interests"] = [
-            item.strip()
-            for item in form_data["user_interests"].split(",")
-            if item.strip()
+            item.strip() for item in form_data["user_interests"].split(",")
         ]
-    if "trip_fixed_schedules" in form_data:
+    if "trip_fixed_schedules" in form_data and form_data["trip_fixed_schedules"]:
         form_data["trip_fixed_schedules"] = [
-            schedule.strip()
-            for schedule in form_data["trip_fixed_schedules"].split("\n")
-            if schedule.strip()
+            ScheduleItem(**schedule) for schedule in  json.loads(form_data["trip_fixed_schedules"])
         ]
+
+    print("fixed schedules: ", form_data["trip_fixed_schedules"])
+    print("type of fixed schedules: ", type(form_data["trip_fixed_schedules"]))
+    print("type of fixed schedules[0]: ", type(form_data["trip_fixed_schedules"][0]))
 
     compiled_entry_graph = await compile_graph_with_async_checkpointer(
         entry_graph, "entry"
@@ -113,7 +134,7 @@ async def update_trip(request: Request):
     previous_state = await compiled_entry_graph.aget_state(config)
     previous_state = previous_state.values
 
-    #! TODO: Nedd to keep this variable for modify feature later
+    #! TODO: Need to keep this variable for modify feature later
     # form_data["updated_trip_information"] = ", ".join(
     #     [
     #         f"Trip information on '{key}' was originally '{previous_state[key]}', but updated to '{value}'"
@@ -138,13 +159,22 @@ async def update_schedule(
     if not new_schedule_data:
         return {"error": "No form data provided"}
 
+    # Serialize dictionary to pydantic model
+    fixed_schedule_dict_list = new_schedule_data["fixed_schedules"]
+    fixed_schedule_serialized_list = [
+        ScheduleItem(**fixed_schedule_dict)
+        for fixed_schedule_dict in fixed_schedule_dict_list
+    ]
+
+    new_schedule_data["fixed_schedules"] = fixed_schedule_serialized_list
+
     compiled_entry_graph = await compile_graph_with_async_checkpointer(
         entry_graph, "entry"
     )
     config = {"configurable": {"thread_id": user["id"]}}
 
-    # update the state with form data
-    result = await compiled_entry_graph.aupdate_state(config, new_schedule_data)
+    await compiled_entry_graph.aupdate_state(config, new_schedule_data)
+
     return JSONResponse(
         status_code=200,
         content={"status": "success", "message": "Schedule updated successfully"},
@@ -173,25 +203,6 @@ async def reset_state(user: dict = Depends(get_current_user_http)):
         status_code=200,
         content={"status": "success", "message": "State reset successfully"},
     )
-
-
-@app.get("/graph_state")
-async def get_graph_state(user: dict = Depends(get_current_user_http)):
-
-    if not user:
-        return {"error": "No user provided or user not found"}
-
-    compiled_entry_graph = await compile_graph_with_async_checkpointer(
-        entry_graph, "entry"
-    )
-    config = {"configurable": {"thread_id": user["id"]}}
-    state = await compiled_entry_graph.aget_state(config, subgraphs=True)
-    state = state.values
-    # print(f"\n\n>>> GRAPH STATE:\n{state}\n\n")
-
-    if not state:
-        return None
-    return state
 
 
 @app.websocket("/ws/generate_schedule")
