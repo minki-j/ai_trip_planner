@@ -33,7 +33,6 @@ from app.utils.utils import convert_schedule_items_to_string, calculate_empty_sl
 from app.workflows.tools.internet_search import internet_search, InternetSearchState
 
 
-MAX_NUM_OF_QUERIES = 3
 MAX_NUM_OF_SCHEDULES = 100
 MAX_NUM_OF_LOOPS = 100
 
@@ -127,11 +126,22 @@ def add_fixed_schedules(state: OverallState):
         return {}
     print("\n>>> NODE: add_fixed_schedules")
 
+    # check all fixed schedules are type of ScheduleItem
+    if not all(isinstance(s, ScheduleItem) for s in state.trip_fixed_schedules):
+        raise ValueError(
+            "Invalid fixed schedules provided. They must be a list of ScheduleItem."
+        )
+
     return {"schedule_list": state.trip_fixed_schedules}
 
 
 def init_generate_queries_validation_loop(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: init_generate_queries_validation_loop")
+
+    format_data = state.model_dump()
+    format_data["trip_fixed_schedules_string"] = convert_schedule_items_to_string(
+        state.trip_fixed_schedules, include_ids=False
+    )
 
     system_prompt = """
 As an AI tour planner, you research travel options by performing internet searches to gather current information for a user.
@@ -139,7 +149,7 @@ As an AI tour planner, you research travel options by performing internet search
 The user will be visiting {trip_location}, staying at {trip_accommodation_location}, from {trip_arrival_date} {trip_arrival_time} to {trip_departure_date} {trip_departure_time}. They prefer a {trip_budget} trip with a focus on {trip_theme} and are particularly interested in {user_interests}. Their day starts at {trip_start_of_day_at} and ends at {trip_end_of_day_at}.
 
 There are fixed schedules that the user has to follow:
-{trip_fixed_schedules}
+{trip_fixed_schedules_string}
 
 Extra information about the user:
 {user_extra_info}
@@ -170,7 +180,7 @@ Query: Most active volcano in Iceland
 Important notes:
 - You do not need to include the trip information in your queries. For instance, you do not need to specify the time that the user is visiting the location.
     """.format(
-        **state.model_dump()
+        format_data
     )
 
     return {
@@ -233,7 +243,9 @@ async def generate_queries(state: GenerateQueryLoopState, writer: StreamWriter):
     }
 
 
-def validate_and_improve_queries_loop(state: GenerateQueryLoopState, writer: StreamWriter):
+def validate_and_improve_queries_loop(
+    state: GenerateQueryLoopState, writer: StreamWriter
+):
     print("\n>>> NODE: validate_and_improve_queries_loop")
 
     class ActionsType(str, Enum):
@@ -269,17 +281,19 @@ def validate_and_improve_queries_loop(state: GenerateQueryLoopState, writer: Str
 
     if (
         response.is_current_queries_good_enough
-        or len(state.generate_query_loop_queries) >= MAX_NUM_OF_QUERIES
+        or len(state.generate_query_loop_queries) >= state.trip_free_hours // 10
         or state.loop_iteration >= MAX_NUM_OF_LOOPS
     ):
         # If the current queries are good enough or the maximum number of queries has been reached, then terminate the loop and start the internet search nodes in parallel
-
         return Command(
             goto=[
                 Send(
                     n(internet_search),
-                    InternetSearchState.model_construct(
-                        **state.model_dump(), query=query.content
+                    InternetSearchState.model_validate(
+                        {
+                            **state.model_dump(),
+                            "query": query.content,
+                        }
                     ),
                 )
                 for query in state.generate_query_loop_queries

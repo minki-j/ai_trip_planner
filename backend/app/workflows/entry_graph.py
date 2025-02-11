@@ -29,7 +29,9 @@ asyncio.run(init_generate_schedule())
 def stage_router(state: OverallState):
     print("\n>>> NODE: stage_router")
 
-    if state.current_stage == Stage.FIRST_GENERATION:
+    if state.current_stage == Stage.END:
+        return END
+    elif state.current_stage == Stage.FIRST_GENERATION:
         return n(generate_schedule)
     elif state.current_stage == Stage.MODIFY:
         return n(generate_schedule) #! Not implemented yet
@@ -40,7 +42,7 @@ g = StateGraph(OverallState)
 g.add_conditional_edges(
     START,
     stage_router,
-    [n(generate_schedule)],
+    [n(generate_schedule), END],
 )
 
 g.add_node(n(generate_schedule), generate_schedule)

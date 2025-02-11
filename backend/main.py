@@ -10,12 +10,10 @@ from fastapi.websockets import WebSocketDisconnect
 from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 
-from langchain_core.messages import AnyMessage, HumanMessage, AIMessage
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langgraph.errors import InvalidUpdateError
 
-from app.llms import chat_model
 from app.models import Stage
+from app.state import ScheduleItem
 from app.utils.compile_graph import compile_graph_with_async_checkpointer
 from app.workflows.entry_graph import g as entry_graph
 from app.workflows.generate.graph import (
@@ -23,7 +21,6 @@ from app.workflows.generate.graph import (
     slot_in_schedule_loop,
     add_terminal_schedules,
 )
-from app.state import ScheduleItem
 
 
 async def get_current_user_websocket(websocket: WebSocket) -> Optional[dict]:
@@ -76,8 +73,8 @@ async def add_user(request: Request):
     await compiled_entry_graph.aupdate_state(
         config,
         {
-            "user_name": user["name"],
             "user_id": user["id"],
+            "user_name": user["name"],
             "user_email": user["email"],
         },
     )
@@ -96,8 +93,10 @@ async def get_graph_state(user: dict = Depends(get_current_user_http)):
     config = {"configurable": {"thread_id": user["id"]}}
     state = await compiled_entry_graph.aget_state(config, subgraphs=True)
     state = state.values
+
     #! GET GRAPH STATE print for debugging
-    print(f"\n\n>>> GRAPH STATE:\n{state}\n\n")
+    # print(f"\n\n>>> GRAPH STATE:\n{state}\n\n")
+    #! GET GRAPH STATE print for debugging
 
     if not state:
         return None
@@ -111,30 +110,30 @@ async def update_trip(request: Request):
     if not form_data:
         return {"error": "No form data provided"}
 
-    # convert string to list
-    if "user_interests" in form_data and form_data["user_interests"]:
-        form_data["user_interests"] = [
-            item.strip() for item in form_data["user_interests"].split(",")
-        ]
-    if "trip_fixed_schedules" in form_data and form_data["trip_fixed_schedules"]:
-        form_data["trip_fixed_schedules"] = [
-            ScheduleItem(**schedule) for schedule in  json.loads(form_data["trip_fixed_schedules"])
-        ]
+    # print("\n\n>>>/update_trip form_data:\n", form_data, "\n\n")
 
-    print("fixed schedules: ", form_data["trip_fixed_schedules"])
-    print("type of fixed schedules: ", type(form_data["trip_fixed_schedules"]))
-    print("type of fixed schedules[0]: ", type(form_data["trip_fixed_schedules"][0]))
+    # Serialize dictionary to pydantic model
+    if "trip_fixed_schedules" in form_data and form_data["trip_fixed_schedules"]:
+        parsed_fixed_schedule_dict_list = json.loads(form_data["trip_fixed_schedules"])
+        if parsed_fixed_schedule_dict_list:
+            form_data["trip_fixed_schedules"] = [
+                ScheduleItem.model_validate(fixed_schedule_dict)
+                for fixed_schedule_dict in parsed_fixed_schedule_dict_list
+            ]
+        else:
+            form_data["trip_fixed_schedules"] = []
+    else:
+        form_data["trip_fixed_schedules"] = []
 
     compiled_entry_graph = await compile_graph_with_async_checkpointer(
         entry_graph, "entry"
     )
     config = {"configurable": {"thread_id": form_data["id"]}}
 
-    # get previous state and cache it to previous_state_before_update field
-    previous_state = await compiled_entry_graph.aget_state(config)
-    previous_state = previous_state.values
-
     #! TODO: Need to keep this variable for modify feature later
+    # # get previous state and cache it to previous_state_before_update field
+    # previous_state = await compiled_entry_graph.aget_state(config)
+    # previous_state = previous_state.values
     # form_data["updated_trip_information"] = ", ".join(
     #     [
     #         f"Trip information on '{key}' was originally '{previous_state[key]}', but updated to '{value}'"
@@ -143,7 +142,24 @@ async def update_trip(request: Request):
     # )
 
     # update the state with form data
-    await compiled_entry_graph.aupdate_state(config, form_data)
+    try: 
+        await compiled_entry_graph.aupdate_state(
+            config,
+            form_data,
+        )
+    except InvalidUpdateError as e:
+        print("Graph is not initialized yet. Invoking with END stage")
+        form_data["current_stage"] = Stage.END
+        await compiled_entry_graph.ainvoke(
+            form_data,
+            config,
+        )
+
+        await compiled_entry_graph.aupdate_state(
+            config=config,
+            values={"current_stage": Stage.FIRST_GENERATION},
+        )
+
     return JSONResponse(
         status_code=200,
         content={"status": "success", "message": "Trip updated successfully"},
@@ -158,15 +174,6 @@ async def update_schedule(
 
     if not new_schedule_data:
         return {"error": "No form data provided"}
-
-    # Serialize dictionary to pydantic model
-    fixed_schedule_dict_list = new_schedule_data["fixed_schedules"]
-    fixed_schedule_serialized_list = [
-        ScheduleItem(**fixed_schedule_dict)
-        for fixed_schedule_dict in fixed_schedule_dict_list
-    ]
-
-    new_schedule_data["fixed_schedules"] = fixed_schedule_serialized_list
 
     compiled_entry_graph = await compile_graph_with_async_checkpointer(
         entry_graph, "entry"

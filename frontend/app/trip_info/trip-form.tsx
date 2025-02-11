@@ -33,7 +33,7 @@ export function TripForm({ user }: { user: User }) {
     user.trip_fixed_schedules
   );
   const newSchedulePlaceholder = {
-    id: 9999, // start from 9999 and go down
+    id: 999, // start from 9999 and go down
     type: ScheduleItemType.EVENT,
     time: { start_time: new Date(), end_time: null },
     location: "",
@@ -62,7 +62,7 @@ export function TripForm({ user }: { user: User }) {
     }
   }, [user.user_extra_info]);
 
-  async function clientAction(formData: FormData) {
+  async function submitForm(formData: FormData) {
     setHasUnsavedChanges(false);
     const formDataObject = Object.fromEntries(formData.entries());
 
@@ -137,7 +137,7 @@ export function TripForm({ user }: { user: User }) {
 
   return (
     <form
-      action={clientAction}
+      action={submitForm}
       className="space-y-6"
       onChange={handleInputChange}
     >
@@ -163,8 +163,9 @@ export function TripForm({ user }: { user: User }) {
           type="text"
           id="user_interests"
           name="user_interests"
-          defaultValue={user.user_interests?.join(", ") ?? ""}
-          placeholder="Enter interests separated by commas"
+          defaultValue={user.user_interests ?? ""}
+          placeholder="e.g. History, Pizza, Jazz, Architecture"
+          required
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />
       </div>
@@ -178,6 +179,7 @@ export function TripForm({ user }: { user: User }) {
           id="trip_location"
           name="trip_location"
           defaultValue={user.trip_location ?? ""}
+          placeholder="e.g. New York City"
           required
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />
@@ -189,7 +191,7 @@ export function TripForm({ user }: { user: User }) {
         </Label>
         <Select
           name="trip_budget"
-          defaultValue={user.trip_budget ?? "moderate"}
+          defaultValue={user.trip_budget ?? ""}
           required
         >
           <SelectTrigger className="w-full">
@@ -207,7 +209,11 @@ export function TripForm({ user }: { user: User }) {
         <Label htmlFor="trip_theme" className="block text-sm font-medium">
           Theme
         </Label>
-        <Select name="trip_theme" defaultValue={user.trip_theme ?? ""} required>
+        <Select
+          name="trip_theme"
+          defaultValue={user.trip_theme ?? ""}
+          required
+        >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a trip theme" />
           </SelectTrigger>
@@ -245,7 +251,7 @@ export function TripForm({ user }: { user: User }) {
           id="trip_arrival_time"
           name="trip_arrival_time"
           required
-          defaultValue={user.trip_arrival_time ?? "09:00"}
+          defaultValue={user.trip_arrival_time ?? ""}
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />
       </div>
@@ -283,7 +289,7 @@ export function TripForm({ user }: { user: User }) {
           id="trip_departure_time"
           name="trip_departure_time"
           required
-          defaultValue={user.trip_departure_time ?? "09:00"}
+          defaultValue={user.trip_departure_time ?? ""}
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />
       </div>
@@ -334,7 +340,7 @@ export function TripForm({ user }: { user: User }) {
           id="trip_start_of_day_at"
           name="trip_start_of_day_at"
           required
-          defaultValue={user.trip_start_of_day_at ?? "09:00"}
+          defaultValue={user.trip_start_of_day_at ?? ""}
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />
       </div>
@@ -351,7 +357,7 @@ export function TripForm({ user }: { user: User }) {
           id="trip_end_of_day_at"
           name="trip_end_of_day_at"
           required
-          defaultValue={user.trip_end_of_day_at ?? "21:00"}
+          defaultValue={user.trip_end_of_day_at ?? ""}
           className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
         />
       </div>
@@ -364,7 +370,7 @@ export function TripForm({ user }: { user: User }) {
           Fixed Schedules
         </Label>
         <div className="space-y-2">
-          {fixedSchedules.length > 0 && (
+          {fixedSchedules?.length > 0 && (
             <div className="space-y-2">
               {fixedSchedules.map((schedule, index) => (
                 <div
@@ -507,13 +513,15 @@ export function TripForm({ user }: { user: User }) {
                             newSchedule.time.end_time.getMonth() + 1
                           ).padStart(2, "0") +
                           "-" +
-                          String(
-                            newSchedule.time.end_time.getDate()
-                          ).padStart(2, "0") +
+                          String(newSchedule.time.end_time.getDate()).padStart(
+                            2,
+                            "0"
+                          ) +
                           "T" +
-                          String(
-                            newSchedule.time.end_time.getHours()
-                          ).padStart(2, "0") +
+                          String(newSchedule.time.end_time.getHours()).padStart(
+                            2,
+                            "0"
+                          ) +
                           ":" +
                           String(
                             newSchedule.time.end_time.getMinutes()
@@ -576,10 +584,9 @@ export function TripForm({ user }: { user: User }) {
                   ) {
                     const schedule = {
                       ...newSchedule,
-                      id: 9999 - fixedSchedules.length, // start from 9999 and go down
-                      suggestion: null,
+                      id: newSchedule.id - (fixedSchedules?.length || 0), // adjust id
                     };
-                    const newSchedules = [...fixedSchedules, schedule];
+                    const newSchedules = [...(fixedSchedules || []), schedule];
                     const hiddenInput = document.getElementById(
                       "trip_fixed_schedules"
                     ) as HTMLInputElement;
@@ -596,11 +603,11 @@ export function TripForm({ user }: { user: User }) {
           ) : (
             <Button
               type="button"
-              variant="secondary"
-              className="w-full"
+              variant="outline"
+              className="w-full text-muted-foreground"
               onClick={() => setShowNewFixedScheduleForm(true)}
             >
-              Add Schedule
+              + Add
             </Button>
           )}
           <input
@@ -621,13 +628,13 @@ export function TripForm({ user }: { user: User }) {
           id="user_extra_info"
           name="user_extra_info"
           defaultValue={user.user_extra_info ?? ""}
-          rows={4}
-          placeholder="Any additional information about your trip preferences..."
+          placeholder="e.g. I have a penut allergy"
+          rows={1}
           onChange={(e) => {
             e.target.style.height = "auto";
             e.target.style.height = `${e.target.scrollHeight}px`;
           }}
-          className="mb-4 min-h-[100px] max-h-[300px] text-md resize-none leading-relaxed"
+          className="mb-4 max-h-[300px] text-md resize-none leading-relaxed"
         />
       </div>
 

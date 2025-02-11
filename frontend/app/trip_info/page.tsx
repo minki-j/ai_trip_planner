@@ -6,7 +6,7 @@ import { TripForm } from "./trip-form";
 import { User } from "@/models/User";
 import { getGraphState } from "./actions";
 
-export default async function ProfilePage() {
+export default async function TripInfoPage() {
   const session = await getServerSession(authOptions);
 
   if (!session || !session.user) {
@@ -17,8 +17,22 @@ export default async function ProfilePage() {
 
   if (!state) {
     return (
-      <div className="container mx-auto py-8">
-        <p className="text-muted-foreground">No user found</p>
+      <div className="container mx-auto py-16 flex flex-col items-center justify-center space-y-4 text-center">
+        <div className="w-16 h-16 text-muted-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-semibold">Trip Information Not Found</h2>
+        <p className="text-muted-foreground max-w-md">
+          We couldn't find your trip information. This might happen if your session has expired or if there was an error loading your information.
+        </p>
+        <a
+          href="/"
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Return to Home
+        </a>
       </div>
     );
   }
@@ -51,7 +65,7 @@ export default async function ProfilePage() {
   };
 
   return (
-    <div className="container mx-auto py-8 max-w-2xl px-4">
+    <div className="container mx-auto py-4 max-w-2xl px-4">
       {/* <h1 className="text-xl font-bold mb-6">Trip Information</h1> */}
       <TripForm user={user} />
     </div>

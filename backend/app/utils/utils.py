@@ -1,5 +1,5 @@
+from datetime import datetime, timedelta
 from langchain_core.messages import AnyMessage, HumanMessage, AIMessage
-
 from app.state import ScheduleItem, ScheduleItemType
 
 
@@ -15,7 +15,9 @@ def convert_messages_to_string(messages: AnyMessage) -> str:
     )
 
 
-def convert_schedule_items_to_string(schedule_items: list[ScheduleItem]) -> str:
+def convert_schedule_items_to_string(
+    schedule_items: list[ScheduleItem], include_ids: bool = True
+) -> str:
 
     if not schedule_items:
         return "No schedule items are arranged yet."
@@ -24,21 +26,36 @@ def convert_schedule_items_to_string(schedule_items: list[ScheduleItem]) -> str:
 
     result = []
     for item in schedule_items:
-        content = f"- ID:{item.id} | Time:{item.time.start_time}"
-
-        if item.time.end_time:
-            content += f"~{item.time.end_time}"
-
-        content += (
-            f" | Type:{item.type.value} | Title:{item.title} | Location:{item.location}"
+        content = (
+            f"- ID: {item.id} | Time: {item.time.start_time}"
+            if include_ids
+            else f"- Time: {item.time.start_time}"
         )
 
+        if item.time.end_time:
+            content += f" ~ {item.time.end_time}"
+
+        content += f" | Type: {item.type.value} | Title: {item.title} | Location: {item.location}"
+
         if item.description:
-            content += f" | Description:{item.description}"
+            content += f" | Description: {item.description}"
 
         result.append(content)
 
     return "\n".join(result).strip()
+
+
+def parse_datetime(dt_str):
+    formats = [
+        "%Y-%m-%d %H:%M",  # Localized Time
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(dt_str, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Unable to parse datetime string: {dt_str}")
 
 
 def calculate_empty_slots(
@@ -46,8 +63,6 @@ def calculate_empty_slots(
     trip_start_of_day_at: str,
     trip_end_of_day_at: str,
 ) -> str:
-    from datetime import datetime, timedelta
-
     if not schedule_items:
         print("\n\nWarning: Schedule_items is not provided.\n\n")
         return None
@@ -67,14 +82,15 @@ def calculate_empty_slots(
         return None
 
     intervals = []
+
     for item in schedule_items:
         # Parse the start_time string.
-        start = datetime.strptime(item.time.start_time, "%Y-%m-%d %H:%M")
+        start = parse_datetime(item.time.start_time)
         # If end_time is not provided, set it to the same as start_time.
         if item.time.end_time is None:
             end = start
         else:
-            end = datetime.strptime(item.time.end_time, "%Y-%m-%d %H:%M")
+            end = parse_datetime(item.time.end_time)
 
         intervals.append((start, end))
 
@@ -149,7 +165,7 @@ def calculate_empty_slots(
     # group to the same date
     dates = set(
         [f"{start.year}-{start.month}-{start.day}" for start, end in merged_slots]
-    )
+    ).sorted()
 
     free_slots_grouped_by_date = {}
     for date in dates:
@@ -164,7 +180,7 @@ def calculate_empty_slots(
 
     for date, slots in free_slots_grouped_by_date.items():
         free_slots_string += (
-            f"- {date}: " + ", ".join([(f"- {slot}") for slot in slots]) + "\n"
+            f"- {date}: " + ", ".join([(f"{slot}") for slot in slots]) + "\n"
         )
 
     return free_slots_string

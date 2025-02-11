@@ -260,10 +260,16 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
                           <h3 className="text-lg font-semibold text-gray-900 mb-2">
                             {schedule.title}
                           </h3>
-                          <div className="flex items-center mb-3 text-gray-600">
+                          <a
+                            href={schedule.location.includes(' to ') 
+                              ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(schedule.location.split(' to ')[0])}&destination=${encodeURIComponent(schedule.location.split(' to ')[1])}` 
+                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(schedule.location)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center mb-3 text-blue-400 hover:text-blue-800 hover:underline transition-colors">
                             <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
                             <p className="text-sm">{schedule.location}</p>
-                          </div>
+                          </a>
                           {schedule.description && (
                             <p className="text-sm text-gray-700 mb-2 leading-relaxed">
                               {schedule.description}

@@ -50,10 +50,9 @@ def insert_schedule(original: list[ScheduleItem], new: list[ScheduleItem]):
         return []
     if len(new) > 0:
         for new_item in new:
-            id = new_item.id
             for original_item in original:
-                if original_item.id == id:
-                    if original_item.type == ScheduleItemType.REMOVE:
+                if original_item.id == new_item.id:
+                    if new_item.type == ScheduleItemType.REMOVE:
                         original.remove(original_item)
                     else:
                         original_item = new_item
@@ -67,11 +66,12 @@ def insert_schedule(original: list[ScheduleItem], new: list[ScheduleItem]):
 # ===========================================
 class InputState(BaseModel):
     input: str = Field(default=None)
+    current_stage: Stage = Stage.FIRST_GENERATION
 
     user_id: str = Field(default=None)
     user_name: str = Field(default=None)
     user_email: str = Field(default=None)
-    user_interests: list[str] = Field(default_factory=list)
+    user_interests: str = Field(default=None)
     user_extra_info: str = Field(default=None)
 
     trip_arrival_date: str = Field(default=None, description="YYYY-MM-DD")
@@ -96,8 +96,6 @@ class InputState(BaseModel):
 
 
 class OverallState(InputState):
-    current_stage: Stage = Stage.FIRST_GENERATION
-
     internet_search_result_list: Annotated[list[dict], extend_list] = Field(
         default_factory=list
     )

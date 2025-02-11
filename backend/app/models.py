@@ -9,6 +9,7 @@ from enum import Enum
 class Stage(str, Enum):
     FIRST_GENERATION = "first_generation"
     MODIFY = "modify"
+    END = "end"
 
 
 class Role(str, Enum):

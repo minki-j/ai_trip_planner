@@ -24,16 +24,16 @@ interface ReasoningStep {
 
 export default function SchedulePage() {
   const { data: session, status } = useSession();
-  
+
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showReasoningSteps, setShowReasoningSteps] = useState(true);
-  
+
   const stepsContainerRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     if (stepsContainerRef.current && reasoningSteps.length > 0) {
       // stepsContainerRef.current.scrollTop = 0;
@@ -155,9 +155,10 @@ export default function SchedulePage() {
     <>
       {/* Reasoning Steps */}
       {reasoningSteps.length > 0 && showReasoningSteps && (
-        <div 
+        <div
           ref={stepsContainerRef}
-          className="p-4 space-y-4 h-[30vh] overflow-y-scroll scrollbar-show bg-gray-100">
+          className="p-4 space-y-4 h-[30vh] overflow-y-scroll scrollbar-show bg-gray-100"
+        >
           {reasoningSteps.map((step, index) => (
             <div key={index} className="border-l-2 border-primary/20 pl-4 py-2">
               <h3 className="text-sm font-medium text-primary mb-2">
@@ -191,7 +192,7 @@ export default function SchedulePage() {
       )}
 
       {/* Show/Hide reasoning steps button */}
-      {reasoningSteps.length > 0 ? (
+      {reasoningSteps.length > 0 && (
         <button
           onClick={() => setShowReasoningSteps(!showReasoningSteps)}
           className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-200"
@@ -221,16 +222,12 @@ export default function SchedulePage() {
             </svg>
           </div>
         </button>
-      ) : (
-        <div className="w-full py-1 flex justify-center items-center text-white bg-gray-100">
-          <span className="text-sm">No reasoning steps available</span>
-        </div>
       )}
 
-      <div className="container mx-auto max-w-3xl px-4">
-        {/* Main content */}
-        <div className="space-y-6">
-          {schedules.length > 0 ? (
+      {/* Main content */}
+      {schedules.length > 0 ? (
+        <div className="container mx-auto max-w-3xl px-4">
+          <div className="space-y-6">
             <div className="bg-card rounded-lg pr-2">
               {isEditMode ? (
                 <ScheduleForm initialSchedules={schedules} />
@@ -238,37 +235,68 @@ export default function SchedulePage() {
                 <ScheduleDisplay schedules={schedules} />
               )}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 bg-muted/50 rounded-lg mt-4">
-              <p className="text-muted-foreground">No schedules to display</p>
-            </div>
-          )}
+          </div>
         </div>
-
-        {/* Floating Buttons */}
-        <Button
-          onClick={() => {
-            if (
-              window.confirm(
-                "Are you sure you want to regenerate a new schedule?"
-              )
-            ) {
+      ) : (
+        <div className="w-full p-6 flex flex-col gap-3 justify-center items-center text-gray-600 bg-gray-50 rounded-b-lg border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="text-sm font-medium">
+              No schedule generated yet
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 text-center">
+            Click the button to create your personalized travel schedule
+          </p>
+          <Button
+            onClick={() => {
               startGeneration();
-            }
-          }}
-          size="lg"
-          className="fixed bottom-3 right-3 rounded-full w-8 h-8 shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-primary text-primary-foreground"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-        <Button
-          onClick={() => setIsEditMode(!isEditMode)}
-          size="lg"
-          className="fixed bottom-14 right-3 rounded-full w-8 h-8 shadow-lg hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-primary text-primary-foreground"
-        >
-          <Edit className="h-4 w-4" />
-        </Button>
-      </div>
+            }}
+            className="bg-blue-600 text-white text-sm font-medium mt-6"
+          >
+            Generate Schedule
+          </Button>
+        </div>
+      )}
+
+      {/* Floating Buttons */}
+      <Button
+        onClick={() => setIsEditMode(!isEditMode)}
+        size="lg"
+        className="fixed bottom-14 right-3 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-secondary text-secondary-foreground border"
+        title="Toggle Edit Mode"
+      >
+        <Edit className="h-4 w-4" />
+      </Button>
+      <Button
+        onClick={() => {
+          if (
+            window.confirm(
+              "Are you sure you want to regenerate a new schedule?"
+            )
+          ) {
+            startGeneration();
+          }
+        }}
+        size="lg"
+        className="fixed bottom-3 right-3 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-secondary text-secondary-foreground border"
+        title="Regenerate Schedule"
+      > 
+        <RefreshCw className="h-4 w-4" />
+      </Button>
     </>
   );
 }
