@@ -36,15 +36,17 @@ export function Navigation() {
   ];
 
   return (
-    <nav className="border-b">
-      <div className="container mx-auto px-4 py-4">
+    <nav className="border-b bg-background z-[999] h-[60px] fixed top-0 w-full">
+      <div className="container mx-auto max-w-3xl px-4 py-2 sm:py-3">
         <div className="flex w-full items-center justify-between space-x-8">
-          <div className="flex items-center space-x-8">
+          <div className="flex items-center space-x-6">
             <Link href="/" className="text-xl font-bold">
-              <span className="md:hidden">TA</span>
-              <span className="hidden md:inline text-xl">Tour Assistant</span>
+              <span className="md:hidden text-md">TA</span>
+              <span className="hidden md:inline text-base lg:text-lg">
+                Tour Assistant
+              </span>
             </Link>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               {links.map(({ href, label, icon: Icon, requiresAuth }) =>
                 requiresAuth && !session ? (
                   <TooltipProvider key={href}>
@@ -64,7 +66,7 @@ export function Navigation() {
                   <Link
                     key={href}
                     href={href}
-                    className={`flex items-center space-x-2 ${
+                    className={`flex items-center space-x-2 text-sm ${
                       pathname === href
                         ? "text-primary font-medium"
                         : "text-muted-foreground"

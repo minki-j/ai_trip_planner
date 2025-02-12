@@ -22,17 +22,19 @@ class ScheduleItemType(str, Enum):
     REMOVE = "remove"
 
 class ScheduleItemTime(BaseModel):
-    start_time: str = Field(description="YYYY-MM-DD HH:MM")
-    end_time: str | None = Field(description="YYYY-MM-DD HH:MM")
+    start_time: str = Field(description="Full date-and-time should be included. e.g. 'YYYY-MM-DD HH:MM'")
+    end_time: str | None = Field(
+        description="Both full-date-and-time and time-only are allowed. e.g. 'YYYY-MM-DD HH:MM' or 'HH:MM'"
+    )
 
 class ScheduleItem(BaseModel):
     id: int
-    type: ScheduleItemType
+    activity_type: ScheduleItemType
     time: ScheduleItemTime
     location: str
     title: str
-    description: str | None = Field(description="Detailed description of the item. (Optional)")
-    suggestion: str | None = Field(description="Detailed suggestions regarding the item. (Optional)")
+    description: str | None 
+    suggestion: str | None
 
 
 # ===========================================
@@ -50,14 +52,17 @@ def insert_schedule(original: list[ScheduleItem], new: list[ScheduleItem]):
         return []
     if len(new) > 0:
         for new_item in new:
-            for original_item in original:
+            found = False
+            for i, original_item in enumerate(original):
                 if original_item.id == new_item.id:
-                    if new_item.type == ScheduleItemType.REMOVE:
-                        original.remove(original_item)
+                    found = True
+                    if new_item.activity_type == ScheduleItemType.REMOVE:
+                        original.pop(i)
                     else:
-                        original_item = new_item
+                        original[i] = new_item
                     break
-            original.append(new_item)
+            if not found and new_item.activity_type != ScheduleItemType.REMOVE:
+                original.append(new_item)
     return original
 
 

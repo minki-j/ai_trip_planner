@@ -22,23 +22,29 @@ def convert_schedule_items_to_string(
     if not schedule_items:
         return "No schedule items are arranged yet."
 
-    schedule_items.sort(key=lambda x: (x.time.start_time))
+    schedule_items = sorted(schedule_items, key=lambda x: x.time.start_time)
 
-    result = []
+    result = [
+        f" {"ID | " if include_ids else ""}Time | Type | Title | Location | Description"
+    ] # Only include field names at top to save tokens.
     for item in schedule_items:
         content = (
-            f"- ID: {item.id} | Time: {item.time.start_time}"
+            f"- {item.id} | {item.time.start_time}"
             if include_ids
-            else f"- Time: {item.time.start_time}"
+            else f"- {item.time.start_time}"
         )
 
         if item.time.end_time:
-            content += f" ~ {item.time.end_time}"
+            if item.time.end_time.split(" ")[0] == item.time.start_time.split(" ")[0]:
+                # Exclude date info if they are the same
+                content += f" ~ {item.time.end_time.split(' ')[1]}"
+            else:
+                content += f" ~ {item.time.end_time}"
 
-        content += f" | Type: {item.type.value} | Title: {item.title} | Location: {item.location}"
+        content += f" | {item.activity_type.value} | {item.title} | {item.location}"
 
         if item.description:
-            content += f" | Description: {item.description}"
+            content += f" | {item.description}"
 
         result.append(content)
 
@@ -48,6 +54,7 @@ def convert_schedule_items_to_string(
 def parse_datetime(dt_str):
     formats = [
         "%Y-%m-%d %H:%M",  # Localized Time
+        "%H:%M",  # Time only
     ]
 
     for fmt in formats:
@@ -75,8 +82,8 @@ def calculate_empty_slots(
     schedule_items.sort(key=lambda x: (x.time.start_time))
 
     if (
-        schedule_items[0].type != ScheduleItemType.TERMINAL
-        or schedule_items[-1].type != ScheduleItemType.TERMINAL
+        schedule_items[0].activity_type != ScheduleItemType.TERMINAL
+        or schedule_items[-1].activity_type != ScheduleItemType.TERMINAL
     ):
         print("\n\nWarning: First and last items must be terminals.\n\n")
         return None
@@ -98,9 +105,19 @@ def calculate_empty_slots(
     free_slots = []
     overall_start, overall_end = intervals[0][0], intervals[-1][1]
     slot_duration = timedelta(minutes=30)
+    
+    # Round up to the next half hour for the start time
+    minutes = overall_start.minute
+    if minutes > 30:
+        adjusted_start = overall_start.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    elif minutes > 0 and minutes <= 30:
+        adjusted_start = overall_start.replace(minute=30, second=0, microsecond=0)
+    else:
+        adjusted_start = overall_start.replace(minute=0, second=0, microsecond=0)
+    
     current_slot: list[datetime, datetime] = [
-        overall_start,
-        overall_start + slot_duration,
+        adjusted_start,
+        adjusted_start + slot_duration,
     ]
 
     while current_slot[1] <= overall_end:
@@ -163,9 +180,9 @@ def calculate_empty_slots(
             merged_slots.append(current_slot)
 
     # group to the same date
-    dates = sorted(set(
-        [f"{start.year}-{start.month}-{start.day}" for start, end in merged_slots]
-    ))
+    dates = sorted(
+        set([f"{start.year}-{start.month}-{start.day}" for start, end in merged_slots])
+    )
 
     free_slots_grouped_by_date = {}
     for date in dates:

@@ -17,14 +17,14 @@ export default async function TripInfoPage() {
 
   if (!state) {
     return (
-      <div className="container mx-auto py-16 flex flex-col items-center justify-center space-y-4 text-center">
+      <div className="container mx-auto mt-[100px] px-8 flex flex-col items-center justify-center space-y-4 text-center">
         <div className="w-16 h-16 text-muted-foreground">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
           </svg>
         </div>
-        <h2 className="text-2xl font-semibold">Trip Information Not Found</h2>
-        <p className="text-muted-foreground max-w-md">
+        <h2 className="text-lg font-semibold">Trip Information Not Found</h2>
+        <p className="text-sm text-muted-foreground max-w-md">
           We couldn't find your trip information. This might happen if your session has expired or if there was an error loading your information.
         </p>
         <a
@@ -65,7 +65,7 @@ export default async function TripInfoPage() {
   };
 
   return (
-    <div className="container mx-auto py-4 max-w-2xl px-4">
+    <div className="container mx-auto py-4 mt-[60px] max-w-2xl px-4">
       {/* <h1 className="text-xl font-bold mb-6">Trip Information</h1> */}
       <TripForm user={user} />
     </div>

@@ -1,7 +1,6 @@
 import { NextAuthOptions, DefaultSession } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { connectDB, client } from "./mongodb";
 
 declare module "next-auth" {
   interface Session {

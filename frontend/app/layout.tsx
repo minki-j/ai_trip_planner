@@ -48,7 +48,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>  
+      <head>
         <meta name="theme-color" content="hsl(0, 0%, 3.9%)" />
       </head>
       <body className={inter.className}>
@@ -75,9 +75,11 @@ export default function RootLayout({
                 </div>
               }
             >
-              <div className="min-h-screen bg-background overflow-hidden">
+              <div className=" bg-background">
                 <Navigation />
-                <main className="container mx-auto">{children}</main>
+                <main className="container mx-auto sm:px-4">
+                  {children}
+                </main>
               </div>
             </Suspense>
             <Toaster />

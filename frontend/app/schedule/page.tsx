@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { RefreshCw, Edit } from "lucide-react";
@@ -23,6 +23,7 @@ interface ReasoningStep {
 }
 
 export default function SchedulePage() {
+  const router = useRouter();
   const { data: session, status } = useSession();
 
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
@@ -35,16 +36,27 @@ export default function SchedulePage() {
   const stepsContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (stepsContainerRef.current && reasoningSteps.length > 0) {
-      // stepsContainerRef.current.scrollTop = 0;
+    if (schedules.length > 0 || reasoningSteps.length > 0) {
+      setIsLoading(false);
     }
-  }, [reasoningSteps]);
+  }, [reasoningSteps, schedules]);
 
   useEffect(() => {
     setIsLoading(true);
     const fetchInitialSchedules = async () => {
       const state = await getGraphState();
-      setSchedules(state.schedule_list);
+      if (state) {
+        if (!state.trip_location) {
+          toast({
+            title: "Trip Information Not Found",
+            description: "Please fill out your trip information.",
+            variant: "destructive",
+          });
+          router.push("/trip_info");
+        } else {
+          setSchedules(state.schedule_list);
+        }
+      }
     };
 
     fetchInitialSchedules().finally(() => setIsLoading(false));
@@ -80,12 +92,15 @@ export default function SchedulePage() {
         variant: "destructive",
         duration: 4000,
       });
+      window.location.reload();
+
       return;
     }
     return websocket;
   };
 
   const startGeneration = async () => {
+    setIsLoading(true);
     await resetAgentStateAction();
     setReasoningSteps([]);
     setSchedules([]);
@@ -136,6 +151,7 @@ export default function SchedulePage() {
       if (websocket.readyState !== WebSocket.CLOSED) {
         websocket.close();
       }
+      setIsLoading(false);
       toast({
         title: "Error",
         description: `${
@@ -152,12 +168,60 @@ export default function SchedulePage() {
   }
 
   return (
-    <>
+    <div className="container mt-[60px] mx-auto max-w-3xl">
+      {/* Main content */}
+      {schedules.length > 0 ? (
+        <div>
+          {isEditMode ? (
+            <ScheduleForm initialSchedules={schedules} />
+          ) : (
+            <ScheduleDisplay
+              schedules={schedules}
+              startGeneration={startGeneration}
+              setIsEditMode={setIsEditMode}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="w-full py-5 flex flex-col gap-3 justify-center items-center text-gray-600 bg-gray-50 rounded-b-lg border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="text-sm font-medium">
+              No schedule generated yet
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 text-center">
+            Click the button to create your personalized travel schedule
+          </p>
+          <Button
+            onClick={() => {
+              startGeneration();
+            }}
+            className="bg-blue-600 text-white text-sm font-medium"
+          >
+            Generate Schedule
+          </Button>
+        </div>
+      )}
+
       {/* Reasoning Steps */}
-      {reasoningSteps.length > 0 && showReasoningSteps && (
+      {/* {reasoningSteps.length > 0 && showReasoningSteps && (
         <div
           ref={stepsContainerRef}
-          className="p-4 space-y-4 h-[30vh] overflow-y-scroll scrollbar-show bg-gray-100"
+          className="p-4 space-y-4 h-[30vh] overflow-y-scroll scrollbar-show bg-gray-100 sticky bottom-7"
         >
           {reasoningSteps.map((step, index) => (
             <div key={index} className="border-l-2 border-primary/20 pl-4 py-2">
@@ -189,13 +253,13 @@ export default function SchedulePage() {
             </div>
           ))}
         </div>
-      )}
+      )} */}
 
       {/* Show/Hide reasoning steps button */}
-      {reasoningSteps.length > 0 && (
+      {/* {reasoningSteps.length > 0 && (
         <button
           onClick={() => setShowReasoningSteps(!showReasoningSteps)}
-          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-200"
+          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-200 sticky bottom-0"
           aria-label={
             showReasoningSteps ? "Hide reasoning steps" : "Show reasoning steps"
           }
@@ -211,7 +275,7 @@ export default function SchedulePage() {
               viewBox="0 0 20 20"
               fill="currentColor"
               className={`w-4 h-4 transition-transform ${
-                showReasoningSteps ? "transform rotate-180" : ""
+                showReasoningSteps ? "" : "transform rotate-180"
               }`}
             >
               <path
@@ -222,81 +286,7 @@ export default function SchedulePage() {
             </svg>
           </div>
         </button>
-      )}
-
-      {/* Main content */}
-      {schedules.length > 0 ? (
-        <div className="container mx-auto max-w-3xl px-4">
-          <div className="space-y-6">
-            <div className="bg-card rounded-lg pr-2">
-              {isEditMode ? (
-                <ScheduleForm initialSchedules={schedules} />
-              ) : (
-                <ScheduleDisplay schedules={schedules} />
-              )}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="w-full p-6 flex flex-col gap-3 justify-center items-center text-gray-600 bg-gray-50 rounded-b-lg border-t border-gray-100">
-          <div className="flex items-center gap-2">
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span className="text-sm font-medium">
-              No schedule generated yet
-            </span>
-          </div>
-          <p className="text-sm text-gray-500 text-center">
-            Click the button to create your personalized travel schedule
-          </p>
-          <Button
-            onClick={() => {
-              startGeneration();
-            }}
-            className="bg-blue-600 text-white text-sm font-medium mt-6"
-          >
-            Generate Schedule
-          </Button>
-        </div>
-      )}
-
-      {/* Floating Buttons */}
-      <Button
-        onClick={() => setIsEditMode(!isEditMode)}
-        size="lg"
-        className="fixed bottom-14 right-3 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-secondary text-secondary-foreground border"
-        title="Toggle Edit Mode"
-      >
-        <Edit className="h-4 w-4" />
-      </Button>
-      <Button
-        onClick={() => {
-          if (
-            window.confirm(
-              "Are you sure you want to regenerate a new schedule?"
-            )
-          ) {
-            startGeneration();
-          }
-        }}
-        size="lg"
-        className="fixed bottom-3 right-3 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-secondary text-secondary-foreground border"
-        title="Regenerate Schedule"
-      > 
-        <RefreshCw className="h-4 w-4" />
-      </Button>
-    </>
+      )} */}
+    </div>
   );
 }

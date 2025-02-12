@@ -20,10 +20,16 @@ import {
   Heart,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, Edit } from "lucide-react";
+
 
 interface ScheduleDisplayProps {
   schedules: ScheduleItem[];
+  startGeneration: () => void;
+  setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>;
 }
+
 
 // Helper function to check if two dates are the same day
 const isSameDay = (date1: Date, date2: Date) => {
@@ -34,7 +40,7 @@ const isSameDay = (date1: Date, date2: Date) => {
   );
 };
 
-export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
+export default function ScheduleDisplay({ schedules, startGeneration, setIsEditMode }: ScheduleDisplayProps) {
   // Calculate earliest and latest dates from schedules
   const dateRange = schedules.reduce(
     (acc, activity) => {
@@ -92,7 +98,9 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
       (a, b) =>
         new Date(a.time.start_time).getTime() -
         new Date(b.time.start_time).getTime()
-    );
+  );
+
+  console.log("currentDateSchedules: ", currentDateSchedules);
 
   // Helper function to format time
   const formatTime = (date: Date) => {
@@ -156,50 +164,9 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4">
-      {/* Date Navigation */}
-      <motion.div
-        className="flex items-center justify-between mb-8 bg-white sticky top-0 py-4 z-10"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <button
-          onClick={handlePreviousDay}
-          className={`p-2 rounded-full transition-all duration-200 ${
-            !isPreviousDisabled
-              ? "hover:bg-gray-100 hover:scale-105 active:scale-95"
-              : "opacity-20 cursor-not-allowed"
-          }`}
-          aria-label="Previous day"
-          disabled={isPreviousDisabled}
-        >
-          <ChevronLeft className="h-6 w-6" />
-        </button>
-        <h2 className="text-xl font-bold text-gray-900">
-          {currentDate.toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </h2>
-        <button
-          onClick={handleNextDay}
-          className={`p-2 rounded-full transition-all duration-200 ${
-            !isNextDisabled
-              ? "hover:bg-gray-100 hover:scale-105 active:scale-95"
-              : "opacity-20 cursor-not-allowed"
-          }`}
-          aria-label="Next day"
-          disabled={isNextDisabled}
-        >
-          <ChevronRight className="h-6 w-6" />
-        </button>
-      </motion.div>
-
+    <div>
       {/* Schedule Timeline */}
-      <div className="relative border-l-2 border-gray-200 ml-2">
+      <div className="relative border-l-2 border-gray-200 ml-3 mr-2 pt-3 mb-[70px] z-9">
         <AnimatePresence mode="wait">
           {currentDateSchedules.length === 0 ? (
             <motion.div
@@ -218,13 +185,13 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
               exit={{ opacity: 0 }}
             >
               {currentDateSchedules.map((schedule, index) => {
-                const styling = getScheduleStyling(schedule.type);
+                const styling = getScheduleStyling(schedule.activity_type);
                 const Icon = styling.icon;
 
                 return (
                   <motion.div
-                    key={schedule.id}
-                    className="mb-8 ml-6"
+                    key={schedule.id + Math.random()}
+                    className="mb-8 ml-4"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
@@ -252,44 +219,48 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
                       role="article"
                       aria-label={`Schedule: ${schedule.title}`}
                     >
-                      <div className="flex items-start gap-4">
-                        <div className="p-2 rounded-full bg-white/50">
-                          <Icon className="h-6 w-6" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="text-md sm:text-lg font-semibold text-gray-900">
                             {schedule.title}
                           </h3>
-                          <a
-                            href={
-                              schedule.location.includes(" to ")
-                                ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-                                    schedule.location.split(" to ")[0]
-                                  )}&destination=${encodeURIComponent(
-                                    schedule.location.split(" to ")[1]
-                                  )}`
-                                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                    schedule.location
-                                  )}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center mb-3 hover:underline hover:text-blue-800  transition-colors"
-                          >
-                            <img src="/Google Maps Icon 2020.svg" alt="Google Maps" className="h-4 w-4 mr-2 flex-shrink-0" />
-                            <p className="text-sm">{schedule.location}</p>
-                          </a>
-                          {schedule.description && (
-                            <p className="text-sm text-gray-700 mb-2 leading-relaxed">
-                              {schedule.description}
-                            </p>
-                          )}
-                          {schedule.suggestion && (
-                            <p className="text-sm text-gray-600 leading-relaxed">
-                              {schedule.suggestion}
-                            </p>
-                          )}
+                          <Icon className="h-6 w-6" />
                         </div>
+                        <a
+                          href={
+                            schedule.location.includes(" to ")
+                              ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+                                  schedule.location.split(" to ")[0]
+                                )}&destination=${encodeURIComponent(
+                                  schedule.location.split(" to ")[1]
+                                )}`
+                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                  schedule.location
+                                )}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-start mb-3 hover:underline hover:text-blue-800 transition-colors"
+                        >
+                          <img
+                            src="/Google Maps Icon 2020.svg"
+                            alt="Google Maps"
+                            className="h-4 w-4 mr-2 flex-shrink-0"
+                          />
+                          <p className="text-[12px] sm:text-sm b-0 p-0">
+                            {schedule.location}
+                          </p>
+                        </a>
+                        {schedule.description && (
+                          <p className="text-xs sm:text-sm text-gray-700 mb-0 sm:mb-2 leading-relaxed">
+                            {schedule.description}
+                          </p>
+                        )}
+                        {schedule.suggestion && (
+                          <p className="text-xs sm:text-sm text-gray-600 mb-0leading-relaxed">
+                            {schedule.suggestion}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -298,6 +269,76 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      {/* Date Navigation */}
+      <div className="py-2 bg-white w-full max-w-3xl mx-auto fixed bottom-0 shadow-[0_-10px_20px_-1px_rgba(0,0,0,0.05)] rounded-xl z-[999]">
+        <motion.div
+          className="flex items-center justify-between"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="flex gap-4">
+            <Button
+              onClick={() => setIsEditMode((prev) => !prev)}
+              size="lg"
+              className="absolute bottom-3 left-3 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-white text-secondary-foreground border"
+              title="Toggle Edit Mode"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Are you sure you want to regenerate a new schedule?"
+                  )
+                ) {
+                  startGeneration();
+                }
+              }}
+              size="lg"
+              className="absolute bottom-3 left-14 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-white text-secondary-foreground border"
+              title="Regenerate Schedule"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex items-center justify-end space-x-4">
+            <button
+              onClick={handlePreviousDay}
+              className={`p-2 rounded-full transition-all duration-200 ${
+                !isPreviousDisabled
+                  ? "hover:bg-gray-100 hover:scale-105 active:scale-95"
+                  : "opacity-20 cursor-not-allowed"
+              }`}
+              aria-label="Previous day"
+              disabled={isPreviousDisabled}
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+            <h2 className="text-sm sm:text-xl font-bold text-gray-900">
+              {currentDate.toLocaleDateString("en-US", {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            </h2>
+            <button
+              onClick={handleNextDay}
+              className={`p-2 rounded-full transition-all duration-200 ${
+                !isNextDisabled
+                  ? "hover:bg-gray-100 hover:scale-105 active:scale-95"
+                  : "opacity-20 cursor-not-allowed"
+              }`}
+              aria-label="Next day"
+              disabled={isNextDisabled}
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          </div>
+        </motion.div>
       </div>
     </div>
   );

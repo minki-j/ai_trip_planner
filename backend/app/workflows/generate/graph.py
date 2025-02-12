@@ -98,8 +98,8 @@ def add_terminal_schedules(state: OverallState):
     return {
         n(state.schedule_list): [
             ScheduleItem(
-                id=1,
-                type=ScheduleItemType.TERMINAL,
+                id=len(state.schedule_list) + 1,
+                activity_type=ScheduleItemType.TERMINAL,
                 time=ScheduleItemTime(
                     start_time=arrival_time,
                     end_time=None,
@@ -110,8 +110,8 @@ def add_terminal_schedules(state: OverallState):
                 suggestion=None,
             ),
             ScheduleItem(
-                id=2,
-                type=ScheduleItemType.TERMINAL,
+                id=len(state.schedule_list) + 2,
+                activity_type=ScheduleItemType.TERMINAL,
                 time=ScheduleItemTime(
                     start_time=departure_time,
                     end_time=None,
@@ -253,24 +253,24 @@ def generate_search_query_loop(
 ):
     print("\n>>> NODE: generate_search_query_loop")
 
-    class ActionsType(str, Enum):
+    class GenerateSearchQueryActionsType(str, Enum):
         ADD = "add"
         REMOVE = "remove"
         MODIFY = "modify"
         SKIP = "skip"
 
-    class Actions(BaseModel):
+    class GenerateSearchQueryActions(BaseModel):
         query_id: int
         rationale: str = Field(description="Explain why you want to do this action.")
-        type: ActionsType
+        type: GenerateSearchQueryActionsType
         new_query_value: str = Field(description="Leave empty if type is remove")
 
     class GenerateSearchQueryLoopResponse(BaseModel):
-        is_current_queries_good_enough: bool = Field(
-            description="All queries meet the criteria."
-        )
-        actions: list[Actions] = Field(
+        actions: list[GenerateSearchQueryActions] = Field(
             description="if is_current_queries_good_enough is True, leave this empty."
+        )
+        is_current_queries_good_enough: bool = Field(
+            description="Return true if the current queries are good enough. Must return this field after actions field."
         )
 
     human_message = HumanMessage(
@@ -304,14 +304,14 @@ def generate_search_query_loop(
                         }
                     ),
                 )
-                for query in state.search_queries
+                for query in state.search_queries[:]
             ]
         )
     else:
         # Process actions to add, remove, and modify the queries
         queries = state.search_queries
         for action in response.actions:
-            if action.type == ActionsType.ADD:
+            if action.activity_type == ActionsType.ADD:
                 # Add a new query with the next available ID
                 if len(queries) == 0:
                     next_id = 1
@@ -324,10 +324,10 @@ def generate_search_query_loop(
                     content=action.new_query_value,
                 )
                 queries.append(new_query)
-            elif action.type == ActionsType.REMOVE:
+            elif action.activity_type == ActionsType.REMOVE:
                 # Remove query by ID
                 queries[:] = [q for q in queries if q.id != action.query_id]
-            elif action.type == ActionsType.MODIFY:
+            elif action.activity_type == ActionsType.MODIFY:
                 # Modify existing query by ID
                 for query in queries:
                     if query.id == action.query_id:
@@ -339,9 +339,9 @@ def generate_search_query_loop(
                 "title": "Validation result",
                 "description": "\n".join(
                     [
-                        f"- {action.rationale} / {action.type.value} query with id {action.query_id} -> {action.new_query_value}"
+                        f"- {action.rationale} / {action.activity_type.value} query with id {action.query_id} -> {action.new_query_value}"
                         for action in response.actions
-                        if action.type != ActionsType.SKIP
+                        if action.activity_type != ActionsType.SKIP
                     ]
                 ),
             }
@@ -402,6 +402,7 @@ Important Rules
 - You don't need to plan the full schedule, just collect information about the query.
 - Make sure only include information that is available from {trip_arrival_date} {trip_arrival_time} to {trip_departure_date} {trip_departure_time}.
 - Do not include citations.
+- Do not use markdown format. Just use plain text.
 - If possible (without making anything up), include practical tips for each tour recommendation, such as signature dishes to order, best photo spots, ways to get cheaper or easier tickets, best times to avoid crowds, portion sizes to expect, local customs or etiquette to be aware of, transportation tips, weather considerations, common scams or tourist traps to avoid, and unique souvenirs to look for.
     """.format(
         **state.model_dump()
@@ -430,7 +431,7 @@ def init_fill_schedule_loop(state: OverallState, writer: StreamWriter):
     format_data = state.model_dump()
     format_data["internet_search_results_string"] = "\n\n\n".join(
         [
-            f"#{i+1}.\n\n##Search Query: {r['query']}\n\n##Result: {r['query_result'].replace("---", "")}"
+            f"#{i+1}.\n\nSearch Query: {r['query']}\n\nResult:\n{r['query_result'].replace("---", "")}"
             for i, r in enumerate(state.internet_search_result_list)
         ]
     )
@@ -469,16 +470,15 @@ class FillScheduleLoopState(OverallState):
         default_factory=list
     )
 
-
-class Action(BaseModel):
-    reasining_stage: str = Field(
+class FillScheduleAction(BaseModel):
+    reasoning: str = Field(
         description="Before creating the schedule item, think out loud your reasoning behind this action."
     )
     schedule_item: ScheduleItem
 
 
 class FillScheduleResponse(BaseModel):
-    actions: list[Action]
+    actions: list[FillScheduleAction]
 
 
 def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
@@ -506,18 +506,18 @@ def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
 Fill the schedule with the best schedule items. Don't need to fill all at once because you'll be asked again until all slots are filled.
 
 Current schedule:
-{convert_schedule_items_to_string(state.schedule_list)}
+{convert_schedule_items_to_string(state.schedule_list, include_ids=False)}
 
 Empty slots:
 {empty_slots}
 
 Important Rules:
 - Fill in events in order, starting with the earliest empty time slot.
-- Unless special circumstances, first check in the accommodation before starting the trip.
 - Consider travel time between locations, and add the travel as an event.
 - Prioritize the activities that are the most relevant to the user and don't overlap with the current schedule.
 - Ensure meal times are accounted for and spaced appropriately throughout the day.
 - Don't forget to come back to accommodation every night.
+- Leave 'id' field empty.
         """
     )
 
@@ -527,6 +527,16 @@ Important Rules:
         ChatPromptTemplate.from_messages(messages)
         | chat_model.with_structured_output(FillScheduleResponse)
     ).invoke({})
+
+    new_schedule_list = [
+        action.schedule_item for action in response.actions
+    ]
+    # assign ids
+    starting_id = len(state.schedule_list) + 1
+    for i, item in enumerate(new_schedule_list):
+        item.id = starting_id + i
+
+    print(f"\n>>> New schedule list: {new_schedule_list}")
 
     new_messages = []
     if should_add_system_prompt:
@@ -538,9 +548,7 @@ Important Rules:
         goto=n(fill_schedule_loop),
         update={
             n(state.fill_schedule_loop_messages): new_messages,
-            n(state.schedule_list): [
-                action.schedule_item for action in response.actions
-            ],
+            n(state.schedule_list): new_schedule_list,
         },
     )
 
@@ -573,7 +581,7 @@ Option #:
 Using the information above, create two TRANSPORT type schedule items: one for arrival and one for departure. 
 
 - Make sure add details in description and suggestion fields. For location field, use 'A to B' format. A and B should be address of the place name. 
-- Title should be 'Go to accommodation' and 'Go to terminal X'. 
+- Title should be 'Go to accommodation' and 'Go to terminal'. 
 - For time field, use the following information: Arrival: {trip_arrival_date} {trip_arrival_time}, Departure: {trip_departure_date} {trip_departure_time}. 
 - You should take the travel time into account and fill both start_time and end_time fields. For example, if the travel time is 1 hour, the start_time should be the arrival time, and the end_time should be the arrival time plus 1 hour. For departure, the start_time should be 1 hour before the terminal departure time.""".format(
         **state.model_dump()
@@ -586,9 +594,23 @@ Using the information above, create two TRANSPORT type schedule items: one for a
         | chat_model.with_structured_output(FillScheduleResponse)
     ).invoke(prompt)
 
+    # Adjust ids considering existing schedule items
+    starting_id = len(state.schedule_list) + 1
+    for i in range(len(response.actions)):
+        response.actions[i].schedule_item.id = starting_id + i
+
     return {
         n(state.schedule_list): [action.schedule_item for action in response.actions],
     }
+
+
+class ValidateScheduleResponse(BaseModel):
+    reasoning: str = Field(
+        description="Take time to thoroughly evaluate each schedule item against the criteria before start changing the schedule."
+    )
+    actions: list[ScheduleItem] = Field(
+        description="Return an empty list if all the criteria are met. Otherwise, add actions to address issues with the schedule.\n\n- In order to remove an item, set its type to 'remove'.\n- In order to add an item, use any ScheduleItemType except 'remove'.\n- Modifications should be done by removing an existing item and adding a new one."
+    )
 
 
 def validate_filled_schedule_loop(state: OverallState):
@@ -597,7 +619,7 @@ def validate_filled_schedule_loop(state: OverallState):
     prompt = """
 You are an AI tour planner, and just finished filling the schedule. Now you need to check if the schedule meets the following criteria:
 
-- There should be at least 3 meals unless there is user-provided schedules during that period of time. (To recognize whether a schedule item is provided by user or not, see the id field. User-provided items start from 999)
+- There should be at least 3 meals per day unless there is user-provided schedules during that period of time or it is arrival or departure day. (To recognize whether a schedule item is provided by user or not, see the id field. User-provided items start from 999)
 - There should be proper transportation slots between locations.
 - The user should start at accomodation and come back to the accomodation every day except arrival and departure day.
 - There shouldn't be duplicated schedule items.
@@ -618,8 +640,8 @@ If all the criteria are met, return an empty list.
         full_schedule_string=convert_schedule_items_to_string(state.schedule_list)
     )
 
-    response: FillScheduleResponse = (
-        chat_model.with_structured_output(FillScheduleResponse)
+    response: ValidateScheduleResponse = (
+        chat_model.with_structured_output(ValidateScheduleResponse)
     ).invoke(prompt)
 
     if len(response.actions) == 0:
@@ -630,11 +652,7 @@ If all the criteria are met, return an empty list.
     else:
         return Command(
             goto=n(validate_filled_schedule_loop),
-            update={
-                n(state.schedule_list): [
-                    action.schedule_item for action in response.actions
-                ]
-            },
+            update={n(state.schedule_list): response.actions},
         )
 
 

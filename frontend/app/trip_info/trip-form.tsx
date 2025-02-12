@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select";
 import { Trash } from "lucide-react";
 
-
 import { updateTrip } from "./actions";
 
 import { User } from "@/models/User";
@@ -35,8 +34,8 @@ export function TripForm({ user }: { user: User }) {
     user.trip_fixed_schedules
   );
   const newSchedulePlaceholder = {
-    id: 999, // start from 9999 and go down
-    type: ScheduleItemType.EVENT,
+    id: 999, // start from 999 and go down
+    activity_type: ScheduleItemType.EVENT,
     time: { start_time: new Date(), end_time: null },
     location: "",
     title: "",
@@ -140,7 +139,7 @@ export function TripForm({ user }: { user: User }) {
   return (
     <form
       action={submitForm}
-      className="space-y-6"
+      className="space-y-6 mb-[65px]"
       onChange={handleInputChange}
     >
       <div className="space-y-2">
@@ -383,7 +382,11 @@ export function TripForm({ user }: { user: User }) {
                       size="sm"
                       className="hover:bg-red-200 p-2 h-30 w-30 rounded-full"
                       onClick={() => {
-                        if (confirm("Are you sure you want to remove this schedule?")) {
+                        if (
+                          confirm(
+                            "Are you sure you want to remove this schedule?"
+                          )
+                        ) {
                           const newSchedules = fixedSchedules.filter(
                             (_, i) => i !== index
                           );
@@ -393,7 +396,6 @@ export function TripForm({ user }: { user: User }) {
                           hiddenInput.value = JSON.stringify(newSchedules);
                           setFixedSchedules(newSchedules);
                         }
-
                       }}
                     >
                       <Trash className="h-4 w-4" />
@@ -401,7 +403,7 @@ export function TripForm({ user }: { user: User }) {
                   </div>
                   <div className="text-sm text-muted-foreground grid grid-cols-2 gap-2">
                     <div>
-                      <span className="font-medium">Type:</span> {schedule.type}
+                      <span className="font-medium">Type:</span> {schedule.activity_type}
                     </div>
                     <div>
                       <span className="font-medium">Location:</span>{" "}
@@ -436,11 +438,11 @@ export function TripForm({ user }: { user: User }) {
                   <select
                     id="schedule_type"
                     className="w-full p-2 border rounded-md"
-                    value={newSchedule.type}
+                    value={newSchedule.activity_type}
                     onChange={(e) =>
                       setNewSchedule((prev) => ({
                         ...prev,
-                        type: e.target.value as ScheduleItemType,
+                        activity_type: e.target.value as ScheduleItemType,
                       }))
                     }
                   >
@@ -640,11 +642,18 @@ export function TripForm({ user }: { user: User }) {
         />
       </div>
 
-      <div className="w-full">
-        <Button type="submit" className="w-full">
-          Save Changes
-        </Button>
-      </div>
+      {hasUnsavedChanges && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 pt-2 bg-background/80 backdrop-blur-sm border-t">
+          <div className="max-w-lg mx-auto px-4 md:px-8 lg:px-12 flex flex-col items-center gap-2">
+            <Button type="submit" className="w-full text-sm">
+              Save
+            </Button>
+            <p className="text-xs text-muted-foreground mb-1">
+              Don't forget to save your changes!
+            </p>
+          </div>
+        </div>
+      )}
     </form>
   );
 }

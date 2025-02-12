@@ -17,7 +17,7 @@ export interface ScheduleItemTime {
 
 export interface ScheduleItem {
   id: number;
-  type: ScheduleItemType;
+  activity_type: ScheduleItemType;
   time: ScheduleItemTime;
   location: string;
   title: string;
