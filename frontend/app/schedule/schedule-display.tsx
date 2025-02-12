@@ -7,17 +7,17 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
-  MapPin,
   Clock,
   Plane,
   Bus,
+  Map,
+  MapPin,
   Footprints,
   Calendar,
-  Building,
-  Route,
+  Ticket,
   Landmark,
-  UtensilsCrossed,
-  HelpCircle,
+  Utensils,
+  Heart,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -124,17 +124,17 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
       [ScheduleItemType.EVENT]: {
         bg: "bg-red-50",
         border: "border-red-200",
-        icon: Calendar,
+        icon: Ticket,
       },
       [ScheduleItemType.MUSEUM_GALLERY]: {
         bg: "bg-red-50",
         border: "border-red-200",
-        icon: Building,
+        icon: Landmark,
       },
       [ScheduleItemType.STREETS]: {
         bg: "bg-red-50",
         border: "border-red-200",
-        icon: Route,
+        icon: Footprints,
       },
       [ScheduleItemType.HISTORICAL_SITE]: {
         bg: "bg-red-50",
@@ -144,12 +144,12 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
       [ScheduleItemType.MEAL]: {
         bg: "bg-yellow-50",
         border: "border-yellow-200",
-        icon: UtensilsCrossed,
+        icon: Utensils,
       },
       [ScheduleItemType.OTHER]: {
         bg: "bg-gray-50",
         border: "border-gray-200",
-        icon: HelpCircle,
+        icon: Heart,
       },
     };
     return styles[type] || styles[ScheduleItemType.OTHER];
@@ -261,13 +261,22 @@ export default function ScheduleDisplay({ schedules }: ScheduleDisplayProps) {
                             {schedule.title}
                           </h3>
                           <a
-                            href={schedule.location.includes(' to ') 
-                              ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(schedule.location.split(' to ')[0])}&destination=${encodeURIComponent(schedule.location.split(' to ')[1])}` 
-                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(schedule.location)}`}
+                            href={
+                              schedule.location.includes(" to ")
+                                ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+                                    schedule.location.split(" to ")[0]
+                                  )}&destination=${encodeURIComponent(
+                                    schedule.location.split(" to ")[1]
+                                  )}`
+                                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                    schedule.location
+                                  )}`
+                            }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center mb-3 text-blue-400 hover:text-blue-800 hover:underline transition-colors">
-                            <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
+                            className="flex items-center mb-3 hover:underline hover:text-blue-800  transition-colors"
+                          >
+                            <img src="/Google Maps Icon 2020.svg" alt="Google Maps" className="h-4 w-4 mr-2 flex-shrink-0" />
                             <p className="text-sm">{schedule.location}</p>
                           </a>
                           {schedule.description && (

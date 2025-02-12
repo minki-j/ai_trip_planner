@@ -11,7 +11,11 @@ from langgraph.types import StreamWriter, Command, Send
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough, RunnableParallel
+from langchain_core.runnables import (
+    RunnablePassthrough,
+    RunnableLambda,
+    RunnableParallel,
+)
 from langchain_core.messages import (
     AnyMessage,
     SystemMessage,
@@ -22,23 +26,24 @@ from langchain_core.messages import (
 
 from app.state import (
     OverallState,
+    InputState,
     ScheduleItem,
     ScheduleItemType,
     ScheduleItemTime,
     extend_list,
 )
 from app.models import Role
-from app.llms import chat_model
+from app.llms import chat_model, perplexity_chat_model
 from app.utils.utils import convert_schedule_items_to_string, calculate_empty_slots
-from app.workflows.tools.internet_search import internet_search, InternetSearchState
 
 
 MAX_NUM_OF_SCHEDULES = 100
 MAX_NUM_OF_LOOPS = 100
+HOURS_PER_QUERY = 6
 
 
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
-    return {"trip_free_hours": 40}
+    return {n(state.trip_free_hours): 40}
 
     print("\n>>> NODE: calculate_how_many_schedules")
 
@@ -80,7 +85,7 @@ Before returning the result, think out loud on how you calculate the number of f
     )
 
     return {
-        "trip_free_hours": response.free_hours,
+        n(state.trip_free_hours): response.free_hours,
     }
 
 
@@ -91,7 +96,7 @@ def add_terminal_schedules(state: OverallState):
     departure_time = f"{state.trip_departure_date} {state.trip_departure_time}"
 
     return {
-        "schedule_list": [
+        n(state.schedule_list): [
             ScheduleItem(
                 id=1,
                 type=ScheduleItemType.TERMINAL,
@@ -132,18 +137,19 @@ def add_fixed_schedules(state: OverallState):
             "Invalid fixed schedules provided. They must be a list of ScheduleItem."
         )
 
-    return {"schedule_list": state.trip_fixed_schedules}
+    return {n(state.schedule_list): state.trip_fixed_schedules}
 
 
-def init_generate_queries_validation_loop(state: OverallState, writer: StreamWriter):
-    print("\n>>> NODE: init_generate_queries_validation_loop")
+async def init_generate_search_query_loop(state: OverallState, writer: StreamWriter):
+    print("\n>>> NODE: init_generate_search_query_loop")
 
     format_data = state.model_dump()
     format_data["trip_fixed_schedules_string"] = convert_schedule_items_to_string(
         state.trip_fixed_schedules, include_ids=False
     )
 
-    system_prompt = """
+    system_prompt = SystemMessage(
+        """
 As an AI tour planner, you research travel options by performing internet searches to gather current information for a user.
 
 The user will be visiting {trip_location}, staying at {trip_accommodation_location}, from {trip_arrival_date} {trip_arrival_time} to {trip_departure_date} {trip_departure_time}. They prefer a {trip_budget} trip with a focus on {trip_theme} and are particularly interested in {user_interests}. Their day starts at {trip_start_of_day_at} and ends at {trip_end_of_day_at}.
@@ -161,9 +167,8 @@ Extra information about the user:
 Here are examples of queries that you should generate. Each example is based on different trip scenario which are not included here. For the queries that you are going to generate, you should use the trip information provided above. 
 
 1. 
-Rationale: The user is visiting Quebec City and wants a Cultural & Heritage theme trip. I should look up if there is any museum related to indigenous culture in Quebec City. I should also check if the museum is open during the duration of the trip.
+Rationale: The user is visiting Quebec City and wants a Cultural & Heritage theme trip. I should look up if there is any museum related to indigenous culture in Quebec City.
 Query: Museums related to indigenous culture in Quebec City
-
 
 2.
 Rationale: The user is visiting Cuba and wants a Relaxation & Wellness theme trip. I should look up which beach is the best to rest in Cuba.
@@ -173,50 +178,35 @@ Query: Best beaches in Cuba to relax
 Rationale: The user is visiting Iceland and wants a Adventure & Sports theme trip. I should look up which volcano is the most active in Iceland.
 Query: Most active volcano in Iceland
 
+4.
+Rationale: It's important to have good food when you're visiting a new place. I should look up the best restaurants and cafes to eat at in Seoul.
+Query: Best restaurants and cafes to eat at in Seoul
+
+5.
+Rationale: The user is visiting Qatar and wants a Entertainment & Party theme trip. I should look up which casino is the best to visit in Qatar.
+Query: Best casinos in Qatar to visit
+
 
 ---
 
 
 Important notes:
 - You do not need to include the trip information in your queries. For instance, you do not need to specify the time that the user is visiting the location.
+- You do not need to include queries for transportation between terminal and accommodation since it is already generated by other workflows.
     """.format(
-        format_data
+            **format_data
+        )
     )
 
-    return {
-        "generate_query_loop_message_list": [SystemMessage(system_prompt)],
-    }
-
-
-class Query(BaseModel):
-    id: int = Field(default=None)
-    rationale: str
-    content: str
-
-
-# For the loop of generating queries and validating them
-# We need an temporary state that stores the message list and the queries
-class GenerateQueryLoopState(OverallState):
-    loop_iteration: int = Field(default=0)
-    generate_query_loop_message_list: Annotated[list[AnyMessage], extend_list] = Field(
-        default_factory=list
+    human_message = HumanMessage(
+        f"""Read my trip information carefully, and generate upto {state.trip_free_hours // HOURS_PER_QUERY} queries to look up information on the internet. Make sure each query don't overlap with the other ones."""
     )
-    generate_query_loop_queries: list[Query] = Field(default_factory=list)
-
-
-async def generate_queries(state: GenerateQueryLoopState, writer: StreamWriter):
-    print("\n>>> NODE: generate_queries")
 
     class Queries(BaseModel):
         queries: list[Query]
 
-    human_message = HumanMessage(
-        f"""Read my trip information carefully, and generate upto {state.trip_free_hours // 10} queries to look up information on the internet. Make sure each query don't overlap with the other ones."""
-    )
-    state.generate_query_loop_message_list.append(human_message)
-
     response: Queries = (
-        ChatPromptTemplate.from_messages(state.generate_query_loop_message_list)
+        ChatPromptTemplate.from_messages([system_prompt, human_message])
         | chat_model.with_structured_output(Queries)
     ).invoke({})
 
@@ -234,19 +224,34 @@ async def generate_queries(state: GenerateQueryLoopState, writer: StreamWriter):
     )
 
     return {
-        "generate_query_loop_message_list": [
+        "loop_iteration": 1,
+        "search_queries": response_dict_with_id,
+        "generate_search_query_loop_messages": [
+            system_prompt,
             human_message,
             AIMessage(json.dumps(response_dict_with_id)),
         ],
-        "generate_query_loop_queries": response_dict_with_id,
-        "loop_iteration": state.loop_iteration + 1,
     }
 
 
-def validate_and_improve_queries_loop(
-    state: GenerateQueryLoopState, writer: StreamWriter
+class Query(BaseModel):
+    id: int = Field(default=None)
+    rationale: str
+    content: str
+
+
+# For the loop of generating queries and validating them
+# We need an temporary state that stores the message list and the queries
+class GenerateSearchQueryLoopState(OverallState):
+    loop_iteration: int
+    search_queries: list[Query]
+    generate_search_query_loop_messages: Annotated[list[AnyMessage], extend_list]
+
+
+def generate_search_query_loop(
+    state: GenerateSearchQueryLoopState, writer: StreamWriter
 ):
-    print("\n>>> NODE: validate_and_improve_queries_loop")
+    print("\n>>> NODE: generate_search_query_loop")
 
     class ActionsType(str, Enum):
         ADD = "add"
@@ -260,7 +265,7 @@ def validate_and_improve_queries_loop(
         type: ActionsType
         new_query_value: str = Field(description="Leave empty if type is remove")
 
-    class ValidateAndImproveQueries(BaseModel):
+    class GenerateSearchQueryLoopResponse(BaseModel):
         is_current_queries_good_enough: bool = Field(
             description="All queries meet the criteria."
         )
@@ -272,16 +277,19 @@ def validate_and_improve_queries_loop(
         "Review the queries for quality. Ensure they are diverse and not redundant. If any queries are redundant, keep only the best one. Add new queries relevant to my trip if any key aspects are missing. Modify queries that are too vague to make them more specific to my trip. For queries that meet the criteria, mark them with 'SKIP' as the action type. If all queries are good enough, return True for is_current_queries_good_enough."
     )
 
-    state.generate_query_loop_message_list.append(human_message)
-
-    response: ValidateAndImproveQueries = (
-        ChatPromptTemplate.from_messages(state.generate_query_loop_message_list)
-        | chat_model.with_structured_output(ValidateAndImproveQueries)
+    response: GenerateSearchQueryLoopResponse = (
+        ChatPromptTemplate.from_messages(
+            [
+                *state.generate_search_query_loop_messages,
+                human_message,
+            ]
+        )
+        | chat_model.with_structured_output(GenerateSearchQueryLoopResponse)
     ).invoke({})
 
     if (
         response.is_current_queries_good_enough
-        or len(state.generate_query_loop_queries) >= state.trip_free_hours // 10
+        or len(state.search_queries) >= state.trip_free_hours // HOURS_PER_QUERY
         or state.loop_iteration >= MAX_NUM_OF_LOOPS
     ):
         # If the current queries are good enough or the maximum number of queries has been reached, then terminate the loop and start the internet search nodes in parallel
@@ -296,12 +304,12 @@ def validate_and_improve_queries_loop(
                         }
                     ),
                 )
-                for query in state.generate_query_loop_queries
+                for query in state.search_queries
             ]
         )
     else:
         # Process actions to add, remove, and modify the queries
-        queries = state.generate_query_loop_queries
+        queries = state.search_queries
         for action in response.actions:
             if action.type == ActionsType.ADD:
                 # Add a new query with the next available ID
@@ -354,16 +362,70 @@ def validate_and_improve_queries_loop(
         # Update GenerateQueryLoopState with new queries and a message, and loop back to the current node "validate_and_improve_queries"
         return Command(
             update={
-                "generate_query_loop_message_list": [human_message, new_message],
-                "generate_query_loop_queries": queries,
-                "loop_iteration": state.loop_iteration + 1,
+                n(state.loop_iteration): state.loop_iteration + 1,
+                n(state.search_queries): queries,
+                n(state.generate_search_query_loop_messages): [
+                    human_message,
+                    new_message,
+                ],
             },
-            goto=n(validate_and_improve_queries_loop),
+            goto=n(generate_search_query_loop),
         )
 
 
-def init_slot_in_schedule_loop(state: OverallState, writer: StreamWriter):
-    print("\n>>> NODE: init_slot_in_schedule_loop")
+class InternetSearchState(InputState):
+    query: str = Field(description="The query to search for.")
+
+
+def internet_search(state: InternetSearchState, writer: StreamWriter):
+    print("\n>>> NODE: internet_search")
+
+    #! Excluded trip_theme, user_interests, and extra_info since they are distracting
+    prompt = """
+You are an AI tour planner doing some research for the user.
+
+The user will be visiting {trip_location}, staying at {trip_accommodation_location}, from {trip_arrival_date}  {trip_arrival_time} to {trip_departure_date}  {trip_departure_time}. They prefer a {trip_budget} trip and plan to start their day at {trip_start_of_day_at} and end it at {trip_end_of_day_at}.
+
+
+---
+
+
+Now here is your task: Collect information about the following query.
+{query}
+
+
+---
+
+
+Important Rules
+- Keep in mind the user's trip information, and sort the results in a way that the most relevant information is at the top.
+- You don't need to plan the full schedule, just collect information about the query.
+- Make sure only include information that is available from {trip_arrival_date} {trip_arrival_time} to {trip_departure_date} {trip_departure_time}.
+- Do not include citations.
+- If possible (without making anything up), include practical tips for each tour recommendation, such as signature dishes to order, best photo spots, ways to get cheaper or easier tickets, best times to avoid crowds, portion sizes to expect, local customs or etiquette to be aware of, transportation tips, weather considerations, common scams or tourist traps to avoid, and unique souvenirs to look for.
+    """.format(
+        **state.model_dump()
+    )
+
+    response = (perplexity_chat_model | StrOutputParser()).invoke(prompt)
+
+    # writer(
+    #     {
+    #         "title": f"{state.query}",
+    #         "description": response,
+    #     }
+    # )
+
+    result = {
+        "query": state.query,
+        "query_result": response,
+    }
+
+    return {"internet_search_result_list": [result]}
+
+
+def init_fill_schedule_loop(state: OverallState, writer: StreamWriter):
+    print("\n>>> NODE: init_fill_schedule_loop")
 
     format_data = state.model_dump()
     format_data["internet_search_results_string"] = "\n\n\n".join(
@@ -401,26 +463,37 @@ Here are information that you have collected on the internet:
     }
 
 
-class SlotInScheduleState(OverallState):
+class FillScheduleLoopState(OverallState):
     system_prompt: SystemMessage
-    slot_in_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(
+    fill_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(
         default_factory=list
     )
 
 
-def slot_in_schedule_loop(state: SlotInScheduleState, writer: StreamWriter):
+class Action(BaseModel):
+    reasining_stage: str = Field(
+        description="Before creating the schedule item, think out loud your reasoning behind this action."
+    )
+    schedule_item: ScheduleItem
+
+
+class FillScheduleResponse(BaseModel):
+    actions: list[Action]
+
+
+def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
     empty_slots = calculate_empty_slots(
         state.schedule_list, state.trip_start_of_day_at, state.trip_end_of_day_at
     )
     if not empty_slots:
-        print("\n>>> Terminate slot_in_schedule_loop")
+        print("\n>>> Terminate: fill_schedule_loop")
         return Command(
-            goto="__end__",
+            goto=n(validate_filled_schedule_loop),
         )
 
-    print("\n>>> NODE: slot_in_schedule_loop")
+    print("\n>>> NODE: fill_schedule_loop")
 
-    messages = state.slot_in_schedule_loop_messages
+    messages = state.fill_schedule_loop_messages
     should_add_system_prompt = False
     if len(messages) == 0:
         should_add_system_prompt = True
@@ -450,18 +523,9 @@ Important Rules:
 
     messages.append(human_message)
 
-    class Action(BaseModel):
-        reasining_stage: str = Field(
-            description="Before creating the schedule item, think out loud your reasoning behind this action."
-        )
-        schedule_item: ScheduleItem
-
-    class SlotInScheduleResponse(BaseModel):
-        actions: list[Action]
-
-    response: list[SlotInScheduleResponse] = (
+    response: FillScheduleResponse = (
         ChatPromptTemplate.from_messages(messages)
-        | chat_model.with_structured_output(SlotInScheduleResponse)
+        | chat_model.with_structured_output(FillScheduleResponse)
     ).invoke({})
 
     new_messages = []
@@ -471,41 +535,140 @@ Important Rules:
     # It's redundant as we provide it every iteration.
 
     return Command(
-        goto=n(slot_in_schedule_loop),
+        goto=n(fill_schedule_loop),
         update={
-            "slot_in_schedule_loop_messages": new_messages,
-            "schedule_list": [action.schedule_item for action in response.actions],
+            n(state.fill_schedule_loop_messages): new_messages,
+            n(state.schedule_list): [
+                action.schedule_item for action in response.actions
+            ],
         },
     )
 
 
+def fill_terminal_transportation_schedule(state: OverallState):
+    print("\n>>> NODE: fill_terminal_transportation_schedule")
+
+    prompt = """
+You are an AI tour planner, and now finding transportation methods between the terminals and the accommodation.
+
+Accommodation: {trip_accommodation_location} ({trip_location}).
+Arrival: {trip_arrival_date} {trip_arrival_time}, {trip_arrival_terminal}.
+Departure: {trip_departure_date} {trip_departure_time}, {trip_departure_terminal}.
+
+You need to find the shortest path between the terminals and the accommodation.
+Consider various methods such as public transportation, taxis/Uber, car rental, and walking.
+Assume that the user has big luggage and needs to carry it all the way.
+Pick the best 1-2 options and return them in detail with the following format:
+
+Option #:
+- Transportation type: ...
+- Duration: ...
+- Price: ...
+- ETC.: ...
+""".format(
+        **state.model_dump()
+    )
+
+    second_prompt = """
+Using the information above, create two TRANSPORT type schedule items: one for arrival and one for departure. 
+
+- Make sure add details in description and suggestion fields. For location field, use 'A to B' format. A and B should be address of the place name. 
+- Title should be 'Go to accommodation' and 'Go to terminal X'. 
+- For time field, use the following information: Arrival: {trip_arrival_date} {trip_arrival_time}, Departure: {trip_departure_date} {trip_departure_time}. 
+- You should take the travel time into account and fill both start_time and end_time fields. For example, if the travel time is 1 hour, the start_time should be the arrival time, and the end_time should be the arrival time plus 1 hour. For departure, the start_time should be 1 hour before the terminal departure time.""".format(
+        **state.model_dump()
+    )
+
+    response: FillScheduleResponse = (
+        perplexity_chat_model
+        | StrOutputParser()
+        | RunnableLambda(lambda x: x + "\n\n---\n\n" + second_prompt)
+        | chat_model.with_structured_output(FillScheduleResponse)
+    ).invoke(prompt)
+
+    return {
+        n(state.schedule_list): [action.schedule_item for action in response.actions],
+    }
+
+
+def validate_filled_schedule_loop(state: OverallState):
+    print("\n>>> NODE: validate_filled_schedule_loop")
+
+    prompt = """
+You are an AI tour planner, and just finished filling the schedule. Now you need to check if the schedule meets the following criteria:
+
+- There should be at least 3 meals unless there is user-provided schedules during that period of time. (To recognize whether a schedule item is provided by user or not, see the id field. User-provided items start from 999)
+- There should be proper transportation slots between locations.
+- The user should start at accomodation and come back to the accomodation every day except arrival and departure day.
+- There shouldn't be duplicated schedule items.
+
+
+---
+
+
+Here is the full schedule that you just filled:
+{full_schedule_string}
+
+
+---
+
+
+If all the criteria are met, return an empty list.
+    """.format(
+        full_schedule_string=convert_schedule_items_to_string(state.schedule_list)
+    )
+
+    response: FillScheduleResponse = (
+        chat_model.with_structured_output(FillScheduleResponse)
+    ).invoke(prompt)
+
+    if len(response.actions) == 0:
+        print("\n>>> Terminate: validate_filled_schedule_loop")
+        return Command(
+            goto=END,
+        )
+    else:
+        return Command(
+            goto=n(validate_filled_schedule_loop),
+            update={
+                n(state.schedule_list): [
+                    action.schedule_item for action in response.actions
+                ]
+            },
+        )
+
+
 g = StateGraph(OverallState)
 g.add_edge(START, n(calculate_how_many_schedules))
+g.add_edge(START, n(add_fixed_schedules))
+g.add_edge(START, n(add_terminal_schedules))
 
-g.add_node(n(calculate_how_many_schedules), calculate_how_many_schedules)
-g.add_edge(n(calculate_how_many_schedules), n(add_fixed_schedules))
-g.add_edge(n(calculate_how_many_schedules), n(add_terminal_schedules))
+g.add_node(calculate_how_many_schedules)
+g.add_edge(n(calculate_how_many_schedules), "rendevous")
 
-g.add_node(n(add_terminal_schedules), add_terminal_schedules)
-g.add_edge(n(add_terminal_schedules), n(init_generate_queries_validation_loop))
+g.add_node(add_terminal_schedules)
+g.add_edge(n(add_terminal_schedules), "rendevous")
 
-g.add_node(n(add_fixed_schedules), add_fixed_schedules)
-g.add_edge(n(add_fixed_schedules), n(init_generate_queries_validation_loop))
+g.add_node(add_fixed_schedules)
+g.add_edge(n(add_fixed_schedules), "rendevous")
 
-g.add_node(
-    n(init_generate_queries_validation_loop), init_generate_queries_validation_loop
-)
-g.add_edge(n(init_generate_queries_validation_loop), n(generate_queries))
+g.add_node("rendevous", RunnablePassthrough())
+g.add_edge("rendevous", n(init_generate_search_query_loop))
+g.add_edge("rendevous", n(fill_terminal_transportation_schedule))
 
-g.add_node(n(generate_queries), generate_queries)
-g.add_edge(n(generate_queries), n(validate_and_improve_queries_loop))
+g.add_node(init_generate_search_query_loop)
+g.add_edge(n(init_generate_search_query_loop), n(generate_search_query_loop))
 
-g.add_node(n(validate_and_improve_queries_loop), validate_and_improve_queries_loop)
+g.add_node(generate_search_query_loop)
 
-g.add_node(n(internet_search), internet_search)
-g.add_edge(n(internet_search), n(init_slot_in_schedule_loop))
+g.add_node(internet_search)
+g.add_edge(n(internet_search), n(init_fill_schedule_loop))
 
-g.add_node(n(init_slot_in_schedule_loop), init_slot_in_schedule_loop)
-g.add_edge(n(init_slot_in_schedule_loop), n(slot_in_schedule_loop))
+g.add_node(init_fill_schedule_loop)
+g.add_edge(n(init_fill_schedule_loop), n(fill_schedule_loop))
 
-g.add_node(n(slot_in_schedule_loop), slot_in_schedule_loop)
+g.add_node(fill_schedule_loop)
+
+g.add_node(fill_terminal_transportation_schedule)
+
+g.add_node(validate_filled_schedule_loop)

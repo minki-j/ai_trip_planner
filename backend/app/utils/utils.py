@@ -163,9 +163,9 @@ def calculate_empty_slots(
             merged_slots.append(current_slot)
 
     # group to the same date
-    dates = set(
+    dates = sorted(set(
         [f"{start.year}-{start.month}-{start.day}" for start, end in merged_slots]
-    ).sorted()
+    ))
 
     free_slots_grouped_by_date = {}
     for date in dates:

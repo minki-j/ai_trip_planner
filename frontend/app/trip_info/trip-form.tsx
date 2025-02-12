@@ -17,6 +17,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Trash } from "lucide-react";
+
 
 import { updateTrip } from "./actions";
 
@@ -209,11 +211,7 @@ export function TripForm({ user }: { user: User }) {
         <Label htmlFor="trip_theme" className="block text-sm font-medium">
           Theme
         </Label>
-        <Select
-          name="trip_theme"
-          defaultValue={user.trip_theme ?? ""}
-          required
-        >
+        <Select name="trip_theme" defaultValue={user.trip_theme ?? ""} required>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select a trip theme" />
           </SelectTrigger>
@@ -383,18 +381,22 @@ export function TripForm({ user }: { user: User }) {
                       type="button"
                       variant="ghost"
                       size="sm"
+                      className="hover:bg-red-200 p-2 h-30 w-30 rounded-full"
                       onClick={() => {
-                        const newSchedules = fixedSchedules.filter(
-                          (_, i) => i !== index
-                        );
-                        const hiddenInput = document.getElementById(
-                          "trip_fixed_schedules"
-                        ) as HTMLInputElement;
-                        hiddenInput.value = JSON.stringify(newSchedules);
-                        setFixedSchedules(newSchedules);
+                        if (confirm("Are you sure you want to remove this schedule?")) {
+                          const newSchedules = fixedSchedules.filter(
+                            (_, i) => i !== index
+                          );
+                          const hiddenInput = document.getElementById(
+                            "trip_fixed_schedules"
+                          ) as HTMLInputElement;
+                          hiddenInput.value = JSON.stringify(newSchedules);
+                          setFixedSchedules(newSchedules);
+                        }
+
                       }}
                     >
-                      ✕
+                      <Trash className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="text-sm text-muted-foreground grid grid-cols-2 gap-2">
