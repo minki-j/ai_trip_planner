@@ -100,8 +100,6 @@ export default function ScheduleDisplay({ schedules, startGeneration, setIsEditM
         new Date(b.time.start_time).getTime()
   );
 
-  console.log("currentDateSchedules: ", currentDateSchedules);
-
   // Helper function to format time
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", {

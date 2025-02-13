@@ -13,9 +13,9 @@ chat_model = ChatOpenAI(
 
 
 perplexity_chat_model = ChatPerplexity(
-    # model="sonar",
+    model="sonar",
     # model="sonar-reasoning",
-    model="llama-3.1-sonar-small-128k-online",
+    # model="llama-3.1-sonar-small-128k-online",
     temperature=0.7,
     pplx_api_key=os.getenv("PPLX_API_KEY"),
 )

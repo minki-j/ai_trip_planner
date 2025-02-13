@@ -190,7 +190,7 @@ def calculate_empty_slots(
 
     for start, end in merged_slots:
         free_slots_grouped_by_date[f"{start.year}-{start.month}-{start.day}"].append(
-            f"{start.hour}:{start.minute} ~ {end.hour}:{end.minute}"
+            f"{str(start.hour).zfill(2)}:{str(start.minute).zfill(2)} ~ {str(end.hour).zfill(2)}:{str(end.minute).zfill(2)}"
         )
 
     free_slots_string = ""

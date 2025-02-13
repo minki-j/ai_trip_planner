@@ -219,7 +219,7 @@ Important notes:
     writer(
         {
             "title": "Queries to look up on the internet",
-            "description": "\n".join([f"- {q.content}" for q in response.queries]),
+            "description": "\n".join([f"- {q.query}" for q in response.queries]),
         }
     )
 
@@ -237,7 +237,7 @@ Important notes:
 class Query(BaseModel):
     id: int = Field(default=None)
     rationale: str
-    content: str
+    query: str #! should have a better name indicating it is a query
 
 
 # For the loop of generating queries and validating them
@@ -300,7 +300,7 @@ def generate_search_query_loop(
                     InternetSearchState.model_validate(
                         {
                             **state.model_dump(),
-                            "query": query.content,
+                            "query": query.query,
                         }
                     ),
                 )
@@ -321,7 +321,7 @@ def generate_search_query_loop(
                 new_query = Query(
                     id=next_id,
                     rationale=action.rationale,
-                    content=action.new_query_value,
+                    query=action.new_query_value,
                 )
                 queries.append(new_query)
             elif action.activity_type == ActionsType.REMOVE:
@@ -331,7 +331,7 @@ def generate_search_query_loop(
                 # Modify existing query by ID
                 for query in queries:
                     if query.id == action.query_id:
-                        query.content = action.new_query_value
+                        query.query = action.new_query_value
                         break
 
         writer(
@@ -350,7 +350,7 @@ def generate_search_query_loop(
         writer(
             {
                 "title": "Improved queries",
-                "description": "\n".join([f"- {q.content}" for q in queries]),
+                "description": "\n".join([f"- {q.query}" for q in queries]),
             }
         )
 
@@ -401,9 +401,9 @@ Important Rules
 - Keep in mind the user's trip information, and sort the results in a way that the most relevant information is at the top.
 - You don't need to plan the full schedule, just collect information about the query.
 - Make sure only include information that is available from {trip_arrival_date} {trip_arrival_time} to {trip_departure_date} {trip_departure_time}.
-- Do not include citations.
-- Do not use markdown format. Just use plain text.
 - If possible (without making anything up), include practical tips for each tour recommendation, such as signature dishes to order, best photo spots, ways to get cheaper or easier tickets, best times to avoid crowds, portion sizes to expect, local customs or etiquette to be aware of, transportation tips, weather considerations, common scams or tourist traps to avoid, and unique souvenirs to look for.
+- Do NOT include citations.
+- Do NOT use Markdown format. Just use plain text with bullet points and numbered lists. 
     """.format(
         **state.model_dump()
     )
@@ -431,7 +431,7 @@ def init_fill_schedule_loop(state: OverallState, writer: StreamWriter):
     format_data = state.model_dump()
     format_data["internet_search_results_string"] = "\n\n\n".join(
         [
-            f"#{i+1}.\n\nSearch Query: {r['query']}\n\nResult:\n{r['query_result'].replace("---", "")}"
+            f"# {i+1}.\n\nSearch Query: {r['query']}\n\nResult:\n{r['query_result'].replace("---", "")}"
             for i, r in enumerate(state.internet_search_result_list)
         ]
     )
@@ -453,6 +453,7 @@ Extra information about the user:
 
 
 Here are information that you have collected on the internet:
+
 {internet_search_results_string}
     """.format(
             **format_data
