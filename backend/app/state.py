@@ -27,6 +27,7 @@ class ScheduleItemTime(BaseModel):
         description="Both full-date-and-time and time-only are allowed. e.g. 'YYYY-MM-DD HH:MM' or 'HH:MM'"
     )
 
+
 class ScheduleItem(BaseModel):
     id: int
     activity_type: ScheduleItemType

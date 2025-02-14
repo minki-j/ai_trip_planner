@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { TripForm } from "./trip-form";
 import { User } from "@/models/User";
-import { getGraphState } from "./actions";
+import { getGraphState } from "../_actions/graph-actions";
 
 export default async function TripInfoPage() {
   const session = await getServerSession(authOptions);

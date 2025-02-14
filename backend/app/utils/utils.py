@@ -16,7 +16,7 @@ def convert_messages_to_string(messages: AnyMessage) -> str:
 
 
 def convert_schedule_items_to_string(
-    schedule_items: list[ScheduleItem], include_ids: bool = True
+    schedule_items: list[ScheduleItem], include_ids: bool = True, include_description: bool = True
 ) -> str:
 
     if not schedule_items:
@@ -25,7 +25,7 @@ def convert_schedule_items_to_string(
     schedule_items = sorted(schedule_items, key=lambda x: x.time.start_time)
 
     result = [
-        f" {"ID | " if include_ids else ""}Time | Type | Title | Location | Description"
+        f" {"ID | " if include_ids else ""}Time | Type | Title | Location{"" if include_description else " | Description"}"
     ] # Only include field names at top to save tokens.
     for item in schedule_items:
         content = (
@@ -43,7 +43,7 @@ def convert_schedule_items_to_string(
 
         content += f" | {item.activity_type.value} | {item.title} | {item.location}"
 
-        if item.description:
+        if include_description and item.description:
             content += f" | {item.description}"
 
         result.append(content)

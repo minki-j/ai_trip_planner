@@ -11,7 +11,6 @@ import {
   Plane,
   Bus,
   Map,
-  MapPin,
   Footprints,
   Calendar,
   Ticket,
@@ -21,15 +20,13 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Edit } from "lucide-react";
-
+import { Edit } from "lucide-react";
 
 interface ScheduleDisplayProps {
   schedules: ScheduleItem[];
   startGeneration: () => void;
   setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>;
 }
-
 
 // Helper function to check if two dates are the same day
 const isSameDay = (date1: Date, date2: Date) => {
@@ -40,7 +37,11 @@ const isSameDay = (date1: Date, date2: Date) => {
   );
 };
 
-export default function ScheduleDisplay({ schedules, startGeneration, setIsEditMode }: ScheduleDisplayProps) {
+export default function ScheduleDisplay({
+  schedules,
+  startGeneration,
+  setIsEditMode,
+}: ScheduleDisplayProps) {
   // Calculate earliest and latest dates from schedules
   const dateRange = schedules.reduce(
     (acc, activity) => {
@@ -98,7 +99,7 @@ export default function ScheduleDisplay({ schedules, startGeneration, setIsEditM
       (a, b) =>
         new Date(a.time.start_time).getTime() -
         new Date(b.time.start_time).getTime()
-  );
+    );
 
   // Helper function to format time
   const formatTime = (date: Date) => {
@@ -296,11 +297,11 @@ export default function ScheduleDisplay({ schedules, startGeneration, setIsEditM
                   startGeneration();
                 }
               }}
-              size="lg"
-              className="absolute bottom-3 left-14 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-white text-secondary-foreground border"
+              variant={"outline"}
+              className="absolute bottom-3 left-14 text-xs h-8 py-0 px-2"
               title="Regenerate Schedule"
             >
-              <RefreshCw className="h-4 w-4" />
+              Regenerate
             </Button>
           </div>
           <div className="flex items-center justify-end space-x-4">

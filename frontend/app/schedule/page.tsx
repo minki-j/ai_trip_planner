@@ -10,7 +10,8 @@ import ReactMarkdown from "react-markdown";
 import ScheduleForm from "./schedule-form";
 import ScheduleDisplay from "./schedule-display";
 import Loading from "./loading";
-import { getGraphState, resetAgentStateAction } from "./actions";
+import { resetAgentStateAction } from "./actions";
+import { getGraphState } from "../_actions/graph-actions";
 
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";

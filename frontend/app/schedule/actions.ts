@@ -1,76 +1,49 @@
 "use server";
 
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { withAuth } from "../_actions/auth-actions";
+import { revalidateTag } from "next/cache";
 
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-export async function getGraphState() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    throw new Error("Not authenticated");
-  }
-  try {
+export async function updateSchedule(formData: Record<string, any>) {
+  return withAuth(async (userId) => {
+    formData["id"] = userId;
+
     const response = await fetch(
-      `${backendUrl}/graph_state?user_id=${session.user.id}`,
+      `${backendUrl}/update_schedule?user_id=${userId}`,
       {
-        method: "GET",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
       }
     );
     if (!response.ok) {
       throw new Error("Network response was not ok");
     }
-    const state = await response.json();
-    return state;
-  } catch (error) {
-    console.error(error);
-    return null;
-  }
-}
-
-export async function updateSchedule(formData: Record<string, any>) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    throw new Error("Not authenticated");
-  }
-  formData["id"] = session.user.id;
-
-  const response = await fetch(
-    `${backendUrl}/update_schedule?user_id=${session.user.id}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(formData),
-    }
-  );
-  if (!response.ok) {
-    throw new Error("Network response was not ok");
-  } else {
+    revalidateTag(`user-${userId}`);
     return true;
-  }
+  });
 }
 
 export async function resetAgentStateAction() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    throw new Error("Not authenticated");
-  }
-
-  const response = await fetch(
-    `${backendUrl}/reset_state?user_id=${session.user.id}`,
-    {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
+  return withAuth(async (userId) => {
+    const response = await fetch(
+      `${backendUrl}/reset_state?user_id=${userId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    if (!response.ok) {
+      throw new Error("Network response was not ok");
     }
-  );
-  if (!response.ok) {
-    throw new Error("Network response was not ok");
-  } else {
-    return true;
-  }
-}
 
+    // Revalidate the graph state cache
+    revalidateTag(`user-${userId}`);
+    return true;
+  });
+}

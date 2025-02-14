@@ -229,7 +229,7 @@ async def generate_schedule_ws(websocket: WebSocket):
         workflow = await compile_graph_with_async_checkpointer(entry_graph, "entry")
 
         async for graph_namespace, stream_mode, data in workflow.astream(
-            {"input": "!! This message is just to avoid empty graph invocation."},
+            {"input": "!! A placeholder input to avoid empty graph invocation error !!"},
             stream_mode=["custom", "updates"],
             config={
                 "recursion_limit": int(os.environ.get("RECURSION_LIMIT")),
