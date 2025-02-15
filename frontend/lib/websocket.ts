@@ -7,7 +7,7 @@ export const connectWebSocket = async () => {
   let websocket: WebSocket;
   try {
     const session = await getServerSession(authOptions);
-    const wsUrl = returnWebSockerURL(session, "generate_schedule");
+    const wsUrl = returnWebSockerURL("generate_schedule");
     websocket = new WebSocket(wsUrl.toString());
 
     websocket.onerror = (error) => {

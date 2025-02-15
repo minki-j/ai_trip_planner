@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { client } from '@/lib/mongodb';
 
 export async function POST(request: Request) {
     const body = await request.json();
@@ -10,13 +9,8 @@ export async function POST(request: Request) {
     }
 
     try {
-        const db = client.db("test");
-        await db.collection('error_report').insertOne({
-            error,
-            email,
-            timestamp: new Date() 
-        });
-
+        // TODO
+        
         return NextResponse.json({ message: 'Error reported successfully.' }, { status: 200 });
     } catch (error) {
         return NextResponse.json({ message: 'Failed to report error.', error: error }, { status: 500 });
