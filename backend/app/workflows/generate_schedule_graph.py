@@ -62,7 +62,7 @@ I'll be arriving at {trip_arrival_date} at {trip_arrival_time}. And I'm going to
 I have some fixed schedules which you need to exclude from the calculation: {trip_fixed_schedules}
 
 Before returning the result, think out loud on how you calculate the number of free hours.
-        """
+        """.strip()
         )
         | chat_model.with_structured_output(FreeHourResponse)
     ).invoke(
@@ -197,10 +197,10 @@ Important notes:
     """.format(
             **format_data
         )
-    )
+    ).strip()
 
     human_message = HumanMessage(
-        f"""Read my trip information carefully, and generate upto {state.trip_free_hours // HOURS_PER_QUERY} queries to look up information on the internet. Make sure each query don't overlap with the other ones."""
+        f"""Read my trip information carefully, and generate upto {state.trip_free_hours // HOURS_PER_QUERY} queries to look up information on the internet. Make sure each query don't overlap with the other ones.""".strip()
     )
 
     class Queries(BaseModel):
@@ -407,7 +407,7 @@ Important Rules
 - Do NOT use Markdown format. Just use plain text with bullet points and numbered lists. 
     """.format(
         **state.model_dump()
-    )
+    ).strip()
 
     response = (perplexity_chat_model | StrOutputParser()).invoke(prompt)
 
@@ -459,15 +459,14 @@ Here are information that you have collected on the internet:
     """.format(
             **format_data
         )
-    )
+    ).strip()
 
     return {
-        "system_prompt": system_prompt,
+        "fill_schedule_loop_messages": [system_prompt],
     }
 
 
 class FillScheduleLoopState(OverallState):
-    system_prompt: SystemMessage
     fill_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(
         default_factory=list
     )
@@ -510,12 +509,6 @@ def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
     print("\n>>> NODE: fill_schedule_loop")
 
     messages = state.fill_schedule_loop_messages
-    should_add_system_prompt = False
-    if len(messages) == 0:
-        should_add_system_prompt = True
-        messages.append(state.system_prompt)
-
-    # Add system prompt for the first iteration
 
     human_message = HumanMessage(
         f"""
@@ -529,7 +522,7 @@ Empty slots:
 
 Important Rules:
 {"\n".join([f"- {c}" for c in FILL_SCHEDULE_CRITERIA_LIST])}
-        """
+        """.strip()
     )
 
     messages.append(human_message)
@@ -550,8 +543,6 @@ Important Rules:
         item.id = starting_id + i
 
     new_messages = []
-    if should_add_system_prompt:
-        new_messages.append(state.system_prompt)
     new_messages.extend(
         [
             human_message,
@@ -602,7 +593,7 @@ Return an empty list if all the criteria are met. Otherwise, add actions to addr
 3. To ADD a new item: use any ScheduleItemType except 'remove' with a new ID. (Be careful with IDs -- You need to provide an ID that doesn't match any existing item. If you do, the item will be modified instead.)
 
 Important!! This field is required. Don't forget to return an empty list if all the criteria are met!
-            """
+            """.strip()
         ),
     )
 
@@ -669,7 +660,7 @@ Option #:
 
 """.format(
         **state.model_dump()
-    )
+    ).strip()
 
     prompt_for_chat_model = """
 Using the information above, create two TRANSPORT type schedule items: one for arrival and one for departure. 
@@ -681,7 +672,7 @@ Using the information above, create two TRANSPORT type schedule items: one for a
 - If possible include cost in the suggestion field.
 """.format(
         **state.model_dump()
-    )
+    ).strip()
 
     response: FillScheduleResponse = (
         perplexity_chat_model
@@ -708,7 +699,7 @@ def validate_full_schedule_loop(state: OverallState):
 There should be at least 3 meals per day unless 
 1. The user-provided schedules overlap with the meal time.
 2. It is arrival or departure day, and the meal time is before or after the terminal schedule
-        """,
+        """.strip(),
         """
 There should be proper transportation slots between locations.
 Here are some examples:
@@ -720,13 +711,13 @@ Schedule:
 
 Response: It doesn't meet the criteria, because it didn't account for the travel time from 891 Amsterdam Avenue to 89 E 42nd St, whic takes about 30 minutes. I need to modify the 
 
-        """,
+        """.strip(),
         """
 The user should start at accomodation and come back to the accomodation every day except arrival and departure day.
-        """,
+        """.strip(),
         """
 There shouldn't be duplicated schedule items.
-        """,
+        """.strip(),
     ]
     criteria_instruction = (
         "Think out loud if provided schedule meets the following criteria:"
@@ -751,7 +742,7 @@ Return an empty list if all the criteria are met. Otherwise, add actions to addr
 1. To REMOVE an item: set its type to 'remove'.
 2. To MODIFY an item: return the new item with the same ID as the original item with any ScheduleItemType other than 'remove'.
 3. To ADD a new item: use any ScheduleItemType except 'remove' with a new ID. (Be careful with IDs -- You need to provide an ID that doesn't match any existing item. If you do, the item will be modified instead.)
-            """
+            """.strip()
         ),
     )
 
@@ -771,7 +762,7 @@ Here is the full schedule that you just filled:
 {full_schedule_string}
     """.format(
         full_schedule_string=convert_schedule_items_to_string(state.schedule_list),
-    )
+    ).strip()
 
     #! Using O3-mini
     response = (

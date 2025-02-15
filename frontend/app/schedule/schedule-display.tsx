@@ -16,7 +16,7 @@ import {
   Ticket,
   Landmark,
   Utensils,
-  Heart,
+  calendarCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -158,7 +158,7 @@ export default function ScheduleDisplay({
       [ScheduleItemType.OTHER]: {
         bg: "bg-gray-50",
         border: "border-gray-200",
-        icon: Heart,
+        icon: calendarCheck,
       },
     };
     return styles[type] || styles[ScheduleItemType.OTHER];
