@@ -131,7 +131,7 @@ export default function SchedulePage() {
 
       websocket.onmessage = async (event) => {
         const response = JSON.parse(event.data);
-        console.log("WebSocket response: ", response);
+        // console.log("WebSocket response: ", response);
 
         if (!response) return;
         if (response.error) {
@@ -149,7 +149,6 @@ export default function SchedulePage() {
           setReasoningSteps((prevSteps) => [...prevSteps, response]);
         } else if (response.data_type == "schedule") {
           delete response.data_type;
-          console.log(response);
           if (response.activity_type == "REMOVE") {
             setSchedules((prevSchedules) =>
               prevSchedules.filter((schedule) => schedule.id !== response.id)
@@ -172,7 +171,6 @@ export default function SchedulePage() {
       };
 
       websocket.onclose = async () => {
-        console.log("WebSocket connection closed");
         await revalidateSchedule(session?.user?.id ?? "");
         setIsLoading(false);
         setIsGenerating(false);

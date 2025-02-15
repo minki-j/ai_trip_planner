@@ -44,8 +44,6 @@ MAX_INTERNET_SEARCH = 10
 
 
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
-    return {n(state.trip_free_hours): 40}
-
     print("\n>>> NODE: calculate_how_many_schedules")
 
     class FreeHourResponse(BaseModel):
@@ -76,7 +74,6 @@ Before returning the result, think out loud on how you calculate the number of f
             "trip_fixed_schedules": state.trip_fixed_schedules,
         }
     )
-    print("calculate_how_many_schedules: ", response)
 
     writer(
         {

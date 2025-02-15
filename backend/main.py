@@ -97,10 +97,6 @@ async def get_graph_state(user: dict = Depends(get_current_user_http)):
     state = await compiled_entry_graph.aget_state(config, subgraphs=True)
     state = state.values
 
-    #! GET GRAPH STATE print for debugging
-    # print(f"\n\n>>> GRAPH STATE:\n{state}\n\n")
-    #! GET GRAPH STATE print for debugging
-
     if not state:
         return None
     return state
@@ -113,7 +109,6 @@ async def update_trip(request: Request):
     if not form_data:
         return {"error": "No form data provided"}
 
-    # print("\n\n>>>/update_trip form_data:\n", form_data, "\n\n")
 
     # Serialize dictionary to pydantic model
     if "trip_fixed_schedules" in form_data and form_data["trip_fixed_schedules"]:

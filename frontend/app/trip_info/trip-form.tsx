@@ -70,8 +70,6 @@ export function TripForm({ user }: { user: User }) {
     formDataObject["trip_arrival_date"] = arrivalDate || "";
     formDataObject["trip_departure_date"] = departureDate || "";
 
-    console.log("formDataObject: ", formDataObject);
-
     const success = await updateTrip(formDataObject);
 
     if (success) {

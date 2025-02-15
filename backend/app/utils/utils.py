@@ -169,7 +169,7 @@ def calculate_empty_slots(
             current_slot[1] + slot_duration,
         ]
     if not free_slots:
-        print("calculate_empty_slots: No free slots are available. Returning None.")
+        print("calculate_empty_slots: No free slots are available.")
         return None
 
     # lump together free slots that are next to each other
