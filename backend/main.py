@@ -16,12 +16,13 @@ from app.models import Stage
 from app.state import ScheduleItem
 from app.utils.compile_graph import compile_graph_with_async_checkpointer
 from app.workflows.entry_graph import g as entry_graph
-from app.workflows.generate.graph import (
+from app.workflows.generate_schedule_graph import (
     add_fixed_schedules,
     fill_schedule_loop,
     add_terminal_schedules,
     fill_terminal_transportation_schedule,
-    validate_filled_schedule_loop,
+    validate_full_schedule_loop,
+    fill_schedule_reflection,
 )
 
 
@@ -247,8 +248,9 @@ async def generate_schedule_ws(websocket: WebSocket):
                     data.get(n(add_fixed_schedules))
                     or data.get(n(add_terminal_schedules))
                     or data.get(n(fill_schedule_loop))
+                    or data.get(n(fill_schedule_reflection))
                     or data.get(n(fill_terminal_transportation_schedule))
-                    or data.get(n(validate_filled_schedule_loop))
+                    or data.get(n(validate_full_schedule_loop))
                 ):
                     for schedule in update_dict["schedule_list"]:
                         await websocket.send_json(

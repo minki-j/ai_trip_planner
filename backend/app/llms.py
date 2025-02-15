@@ -1,13 +1,54 @@
 import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
+
 from langchain_community.chat_models import ChatPerplexity
+from langchain_anthropic import ChatAnthropic
+
 
 load_dotenv()
 
-chat_model = ChatOpenAI(
-    model_name="gpt-4o",
+# chat_model = ChatOpenAI(
+#     model_name="gpt-4o",
+#     temperature=0.7,
+#     api_key=os.getenv("OPENAI_API_KEY"),
+# ).with_fallbacks(
+#     [
+#         ChatOpenAI(
+#             model_name="gpt-4o",
+#             temperature=0.1,
+#             api_key=os.getenv("OPENAI_API_KEY"),
+#         ), # Try with lower temperature
+#         ChatAnthropic(
+#             model="claude-3-5-sonnet-latest",
+#             api_key=os.getenv("ANTHROPIC_API_KEY"),
+#             temperature=0.1,
+#         ),
+#     ]
+# )
+
+chat_model = ChatAnthropic(
+    model="claude-3-5-sonnet-latest",
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
     temperature=0.7,
+).with_fallbacks(
+    [
+        ChatAnthropic(
+            model="claude-3-5-sonnet-latest",
+            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            temperature=0.1,
+        ),
+        ChatOpenAI(
+            model_name="gpt-4o",
+            temperature=0.1,
+            api_key=os.getenv("OPENAI_API_KEY"),
+        ),
+    ]
+)
+
+reasoning_model = ChatOpenAI(
+    model_name="o3-mini",
+    temperature=None,
     api_key=os.getenv("OPENAI_API_KEY"),
 )
 

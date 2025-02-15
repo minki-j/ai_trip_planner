@@ -75,7 +75,7 @@ export default function RootLayout({
                 </div>
               }
             >
-              <div className=" bg-background">
+              <div className="bg-background">
                 <Navigation />
                 <main className="container mx-auto sm:px-4">
                   {children}

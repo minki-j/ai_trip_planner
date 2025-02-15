@@ -4,13 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
-import { RefreshCw, Edit } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-
 import ScheduleForm from "./schedule-form";
 import ScheduleDisplay from "./schedule-display";
 import Loading from "./loading";
-import { resetAgentStateAction } from "./actions";
+import { resetAgentStateAction, revalidateSchedule } from "./actions";
 import { getGraphState } from "../_actions/graph-actions";
 
 import { useToast } from "@/components/ui/use-toast";
@@ -27,14 +24,20 @@ export default function SchedulePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
+  
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
-
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showReasoningSteps, setShowReasoningSteps] = useState(true);
-
+  const[isGenerating, setIsGenerating] = useState(false);
+  
   const stepsContainerRef = useRef<HTMLDivElement>(null);
+
+  // if (!session?.user?.id) {
+  //   router.push("/auth/signin");
+  // }
 
   useEffect(() => {
     if (schedules.length > 0 || reasoningSteps.length > 0) {
@@ -105,6 +108,7 @@ export default function SchedulePage() {
     await resetAgentStateAction();
     setReasoningSteps([]);
     setSchedules([]);
+    setIsGenerating(true);
 
     const websocket = await connectWebSocket();
     if (!websocket) {
@@ -145,8 +149,34 @@ export default function SchedulePage() {
           setReasoningSteps((prevSteps) => [...prevSteps, response]);
         } else if (response.data_type == "schedule") {
           delete response.data_type;
-          setSchedules((prevSchedules) => [...prevSchedules, response]);
+          console.log(response);
+          if (response.activity_type == "REMOVE") {
+            setSchedules((prevSchedules) =>
+              prevSchedules.filter((schedule) => schedule.id !== response.id)
+            );
+          } else {
+            setSchedules((prevSchedules) => {
+              const existingIndex = prevSchedules.findIndex((schedule) => schedule.id === response.id);
+              if (existingIndex !== -1) {
+                // Replace existing schedule
+                const updatedSchedules = [...prevSchedules];
+                updatedSchedules[existingIndex] = response;
+                return updatedSchedules;
+              } else {
+                // Add new schedule
+                return [...prevSchedules, response];
+              }
+            });
+          }
         }
+      };
+
+      websocket.onclose = async () => {
+        console.log("WebSocket connection closed");
+        await revalidateSchedule(session?.user?.id ?? "");
+        setIsLoading(false);
+        setIsGenerating(false);
+        router.refresh();        
       };
     } catch (error: any) {
       if (websocket.readyState !== WebSocket.CLOSED) {
@@ -179,7 +209,8 @@ export default function SchedulePage() {
             <ScheduleDisplay
               schedules={schedules}
               startGeneration={startGeneration}
-              setIsEditMode={setIsEditMode}
+                setIsEditMode={setIsEditMode}
+                isGenerating={isGenerating}
             />
           )}
         </div>

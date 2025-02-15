@@ -25,7 +25,7 @@ def convert_schedule_items_to_string(
     schedule_items = sorted(schedule_items, key=lambda x: x.time.start_time)
 
     result = [
-        f" {"ID | " if include_ids else ""}Time | Type | Title | Location{"" if include_description else " | Description"}"
+        f" {"ID | " if include_ids else ""}Time | Type | Title | Location{" | Description" if include_description else ""}"
     ] # Only include field names at top to save tokens.
     for item in schedule_items:
         content = (
@@ -45,6 +45,9 @@ def convert_schedule_items_to_string(
 
         if include_description and item.description:
             content += f" | {item.description}"
+
+        if item.id > 900:
+            content += " This is a fixed schedule that the user provided. Don't modify it."
 
         result.append(content)
 

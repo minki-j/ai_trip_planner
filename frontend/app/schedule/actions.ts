@@ -47,3 +47,7 @@ export async function resetAgentStateAction() {
     return true;
   });
 }
+
+export async function revalidateSchedule(userId: string) {
+  revalidateTag(`user-${userId}`);
+}

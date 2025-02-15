@@ -32,7 +32,7 @@ export function Navigation() {
 
   const links = [
     { href: "/schedule", label: "Schedule", icon: Clock, requiresAuth: true },
-    { href: "/trip_info", label: "Trip Info", icon: MapPin , requiresAuth: true },
+    { href: "/trip_info", label: "Trip Info", icon: MapPin, requiresAuth: true },
   ];
 
   return (
@@ -124,6 +124,12 @@ export function Navigation() {
                     className="cursor-pointer"
                   >
                     Reset Agent State
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => window.location.href = '/about'}
+                    className="cursor-pointer"
+                  >
+                    About
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

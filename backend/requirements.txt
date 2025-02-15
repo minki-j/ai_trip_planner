@@ -5,7 +5,8 @@ pydantic==2.10.4
 python-dotenv==1.0.1
 varname==0.13.5
 python-dotenv==1.0.1
-langchain_openai==0.2.14 
+langchain_openai==0.3.5
+langchain_anthropic=0.3.7
 langchain_community==0.3.16
 uvicorn==0.34.0
 websockets==14.1

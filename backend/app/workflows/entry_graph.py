@@ -16,7 +16,7 @@ from app.llms import chat_model
 
 from app.models import Stage
 
-from .generate.graph import g as generate_schedule
+from .generate_schedule_graph import g as generate_schedule
 from app.utils.compile_graph import compile_graph_with_async_checkpointer
 
 async def init_generate_schedule():

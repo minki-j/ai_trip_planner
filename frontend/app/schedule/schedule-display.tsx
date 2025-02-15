@@ -26,6 +26,7 @@ interface ScheduleDisplayProps {
   schedules: ScheduleItem[];
   startGeneration: () => void;
   setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>;
+  isGenerating: boolean;
 }
 
 // Helper function to check if two dates are the same day
@@ -41,6 +42,7 @@ export default function ScheduleDisplay({
   schedules,
   startGeneration,
   setIsEditMode,
+  isGenerating,
 }: ScheduleDisplayProps) {
   // Calculate earliest and latest dates from schedules
   const dateRange = schedules.reduce(
@@ -182,6 +184,7 @@ export default function ScheduleDisplay({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              layout
             >
               {currentDateSchedules.map((schedule, index) => {
                 const styling = getScheduleStyling(schedule.activity_type);
@@ -189,11 +192,15 @@ export default function ScheduleDisplay({
 
                 return (
                   <motion.div
-                    key={schedule.id + Math.random()}
+                    key={schedule.id}
                     className="mb-8 ml-4"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{
+                      delay: index * 0.1,
+                      layout: { duration: 0.3 },
+                    }}
+                    layout
                   >
                     {/* Time Indicator */}
                     <div className="flex items-center group">
@@ -269,40 +276,45 @@ export default function ScheduleDisplay({
           )}
         </AnimatePresence>
       </div>
-
       {/* Date Navigation */}
-      <div className="py-2 bg-white w-full max-w-3xl mx-auto fixed bottom-0 shadow-[0_-10px_20px_-1px_rgba(0,0,0,0.05)] rounded-xl z-[999]">
+      <div className="py-2 bg-white w-full max-w-3xl fixed bottom-0 left-1/2 -translate-x-1/2 shadow-[0_-10px_20px_-1px_rgba(0,0,0,0.05)] rounded-xl z-[999]">
         <motion.div
           className="flex items-center justify-between"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <div className="flex gap-4">
-            <Button
-              onClick={() => setIsEditMode((prev) => !prev)}
-              size="lg"
-              className="absolute bottom-3 left-3 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-white text-secondary-foreground border"
-              title="Toggle Edit Mode"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={() => {
-                if (
-                  window.confirm(
-                    "Are you sure you want to regenerate a new schedule?"
-                  )
-                ) {
-                  startGeneration();
-                }
-              }}
-              variant={"outline"}
-              className="absolute bottom-3 left-14 text-xs h-8 py-0 px-2"
-              title="Regenerate Schedule"
-            >
-              Regenerate
-            </Button>
+          <div>
+            {!isGenerating ? (
+              <div className="flex gap-4">
+                <Button
+                  onClick={() => setIsEditMode((prev) => !prev)}
+                  size="lg"
+                  className="absolute bottom-3 left-3 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-white text-secondary-foreground border"
+                  title="Toggle Edit Mode"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        "Are you sure you want to regenerate a new schedule?"
+                      )
+                    ) {
+                      startGeneration();
+                    }
+                  }}
+                  variant={"outline"}
+                  className="absolute bottom-3 left-14 text-xs h-8 py-0 px-2"
+                  title="Regenerate Schedule"
+                >
+                  Regenerate
+                </Button>
+              </div>
+            ) : (
+              <p className="pl-4 text-xs animate-pulse">Generating schedule...</p>
+            )}
           </div>
           <div className="flex items-center justify-end space-x-4">
             <button

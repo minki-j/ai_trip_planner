@@ -33,13 +33,14 @@ from app.state import (
     extend_list,
 )
 from app.models import Role
-from app.llms import chat_model, perplexity_chat_model
+from app.llms import chat_model, perplexity_chat_model, reasoning_model
 from app.utils.utils import convert_schedule_items_to_string, calculate_empty_slots
 
 
 MAX_NUM_OF_SCHEDULES = 100
 MAX_NUM_OF_LOOPS = 100
 HOURS_PER_QUERY = 6
+MAX_INTERNET_SEARCH = 10
 
 
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
@@ -304,7 +305,7 @@ def generate_search_query_loop(
                         }
                     ),
                 )
-                for query in state.search_queries[:]
+                for query in state.search_queries[:MAX_INTERNET_SEARCH]
             ]
         )
     else:
@@ -472,15 +473,28 @@ class FillScheduleLoopState(OverallState):
     )
 
 
-class FillScheduleAction(BaseModel):
+class ScheduleAction(BaseModel):
     reasoning: str = Field(
-        description="Before creating the schedule item, think out loud your reasoning behind this action."
+        description="Before generating the schedule item, think out loud your reasoning behind this action."
     )
-    schedule_item: ScheduleItem
+    schedule_item: ScheduleItem = Field(
+        description="The schedule item to be added to the schedule. Set ID to 0."
+    )
 
 
 class FillScheduleResponse(BaseModel):
-    actions: list[FillScheduleAction]
+    actions: list[ScheduleAction]
+
+
+FILL_SCHEDULE_CRITERIA_LIST = [
+    """Fill in events in order, starting with the earliest empty time slot.""",
+    """Consider travel time between locations, and add the travel as an event using 'transportation' or 'walk' type.""",
+    """Prioritize the activities that are the most relevant to the user and don't overlap with the current schedule.""",
+    """Include as detail as possible the information of the activities in 'description' and 'suggestion' field.""",
+    """Ensure meal times(breakfast, lunch, dinner, snack) are accounted for and spaced appropriately throughout the day.""",
+    """Don't forget to come back to accommodation at the end of the day.""",
+    """Make sure to have enough time to arrive to the departure terminal. No big events right before the departure.""",
+]
 
 
 def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
@@ -490,7 +504,7 @@ def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
     if not empty_slots:
         print("\n>>> Terminate: fill_schedule_loop")
         return Command(
-            goto=n(validate_filled_schedule_loop),
+            goto=n(validate_full_schedule_loop),
         )
 
     print("\n>>> NODE: fill_schedule_loop")
@@ -514,13 +528,7 @@ Empty slots:
 {empty_slots}
 
 Important Rules:
-- Fill in events in order, starting with the earliest empty time slot.
-- Consider travel time between locations, and add the travel as an event using 'transportation' or 'walk' type.
-- Prioritize the activities that are the most relevant to the user and don't overlap with the current schedule.
-- Include as detail as possible the information of the activities in 'description' and 'suggestion' field.
-- Ensure meal times(breakfast, lunch, dinner, snack) are accounted for and spaced appropriately throughout the day.
-- Don't forget to come back to accommodation at the end of the day.
-- Set integer 0 for 'id' field for all items.
+{"\n".join([f"- {c}" for c in FILL_SCHEDULE_CRITERIA_LIST])}
         """
     )
 
@@ -531,25 +539,101 @@ Important Rules:
         | chat_model.with_structured_output(FillScheduleResponse)
     ).invoke({})
 
+    # Note: This creates a new list but the items inside are references to the original objects
     new_schedule_list = [action.schedule_item for action in response.actions]
-    # assign ids
+
     starting_id = len(state.schedule_list) + 1
+
+    # Since we're working with references, this updates both new_schedule_list
+    # and the original items in response.actions simultaneously
     for i, item in enumerate(new_schedule_list):
         item.id = starting_id + i
-
-    print(f"\n>>> New schedule list: {new_schedule_list}")
 
     new_messages = []
     if should_add_system_prompt:
         new_messages.append(state.system_prompt)
-    # Caveat! Don't need to add human message and AIMessage.
-    # It's redundant as we provide it every iteration.
+    new_messages.extend(
+        [
+            human_message,
+            AIMessage(
+                convert_schedule_items_to_string(
+                    [action.schedule_item for action in response.actions],
+                    include_ids=True,
+                    include_description=False,
+                )
+            ),
+        ]
+    )
+
+    return Command(
+        goto=n(fill_schedule_reflection),
+        update={
+            n(state.fill_schedule_loop_messages): new_messages,
+            n(state.schedule_list): new_schedule_list,
+        },
+    )
+
+
+def fill_schedule_reflection(state: FillScheduleLoopState, writer: StreamWriter):
+    print("\n>>> NODE: fill_schedule_reflection")
+
+    criteria_instruction = (
+        "Think out loud if provided schedule items meet the following criteria:"
+    )
+    fill_schedule_criteria_list = [
+        criteria_instruction + c for c in FILL_SCHEDULE_CRITERIA_LIST
+    ]
+
+    # Dynamically create field definitions for the FillScheduleReflectionResponse class
+    fields = {
+        f"reasoning_for_criteria_{i+1}": (str, Field(description=criterion))
+        for i, criterion in enumerate(fill_schedule_criteria_list)
+    }
+
+    # Add the actions field
+    fields["actions"] = (
+        list[ScheduleAction],
+        Field(
+            description="""
+Return an empty list if all the criteria are met. Otherwise, add actions to address issues with the schedule.
+
+1. To REMOVE an item: set its type to 'remove'.
+2. To MODIFY an item: return the new item with the same ID as the original item with any ScheduleItemType other than 'remove'.
+3. To ADD a new item: use any ScheduleItemType except 'remove' with a new ID. (Be careful with IDs -- You need to provide an ID that doesn't match any existing item. If you do, the item will be modified instead.)
+
+Important!! This field is required. Don't forget to return an empty list if all the criteria are met!
+            """
+        ),
+    )
+
+    # Create the FillScheduleReflectionResponse class dynamically
+    FillScheduleReflectionResponse = create_model(
+        "FillScheduleReflectionResponse", **fields, __base__=BaseModel
+    )
+
+    messages = [
+        *state.fill_schedule_loop_messages,  # messages in the fill_schedule_loop
+        HumanMessage(
+            "Verify if the schedule items you just returned meet the provided criteria. Focus only on the items within your current scope, not the entire schedule. For example, if you returned schedules from March 9th 3:00 PM to March 9th 5:00 PM, you only need to evaluate that timeframe."
+        ),
+    ]  # did not include the system prompt
+
+    response = (
+        ChatPromptTemplate.from_messages(messages)
+        | chat_model.with_structured_output(FillScheduleReflectionResponse)
+    ).invoke({})
+
+    messages_to_remove = [
+        RemoveMessage(msg.id) for msg in state.fill_schedule_loop_messages[-2:]
+    ]  # We need to remove these messages because we are going to summarize them in the prompt of the next loop
 
     return Command(
         goto=n(fill_schedule_loop),
         update={
-            n(state.fill_schedule_loop_messages): new_messages,
-            n(state.schedule_list): new_schedule_list,
+            n(state.schedule_list): [
+                action.schedule_item for action in response.actions
+            ],
+            n(state.fill_schedule_loop_messages): messages_to_remove,
         },
     )
 
@@ -593,7 +677,9 @@ Using the information above, create two TRANSPORT type schedule items: one for a
 - Make sure add details in description and suggestion fields. For location field, use 'A to B' format. A and B should be address of the place name. 
 - Title should be 'Go to accommodation' and 'Go to terminal'. 
 - For time field, use the following information: Arrival: {trip_arrival_date} {trip_arrival_time}, Departure: {trip_departure_date} {trip_departure_time}. 
-- You should take the travel time into account and fill both start_time and end_time fields. For example, if the travel time is 1 hour, the start_time should be the arrival time, and the end_time should be the arrival time plus 1 hour. For departure, the start_time should be 1 hour before the terminal departure time.""".format(
+- You should take the travel time into account and fill both start_time and end_time fields. For example, if the travel time is 1 hour, the start_time should be the arrival time, and the end_time should be the arrival time plus 1 hour. For departure, the start_time should be 1 hour before the terminal departure time.
+- If possible include cost in the suggestion field.
+""".format(
         **state.model_dump()
     )
 
@@ -614,34 +700,65 @@ Using the information above, create two TRANSPORT type schedule items: one for a
     }
 
 
-def validate_filled_schedule_loop(state: OverallState):
-    print("\n>>> NODE: validate_filled_schedule_loop")
+def validate_full_schedule_loop(state: OverallState):
+    print("\n>>> NODE: validate_full_schedule_loop")
 
-    criteria_list = [
-        "There should be at least 3 meals per day unless there is user-provided schedules during that period of time or it is arrival or departure day.",
-        "There should be proper transportation slots between locations.",
-        "The user should start at accomodation and come back to the accomodation every day except arrival and departure day.",
-        "There shouldn't be duplicated schedule items.",
+    validate_filled_schedule_criteria_list = [
+        """
+There should be at least 3 meals per day unless 
+1. The user-provided schedules overlap with the meal time.
+2. It is arrival or departure day, and the meal time is before or after the terminal schedule
+        """,
+        """
+There should be proper transportation slots between locations.
+Here are some examples:
+
+Ex 1.
+Schedule:
+- 6 | 2025-02-19 13:30 ~ 14:00 | other | Check-in at Accommodation | 891 Amsterdam Avenue 
+- 9 | 2025-02-19 14:00 ~ 14:30 | historical_site | Visit Grand Central Terminal | 89 E 42nd St, New York, NY 10017
+
+Response: It doesn't meet the criteria, because it didn't account for the travel time from 891 Amsterdam Avenue to 89 E 42nd St, whic takes about 30 minutes. I need to modify the 
+
+        """,
+        """
+The user should start at accomodation and come back to the accomodation every day except arrival and departure day.
+        """,
+        """
+There shouldn't be duplicated schedule items.
+        """,
     ]
-    criteria_instruction = " Think out loud if provided schedule meets this criteria."
-    criteria_list = [c + criteria_instruction for c in criteria_list]
+    criteria_instruction = (
+        "Think out loud if provided schedule meets the following criteria:"
+    )
+    validate_filled_schedule_criteria_list = [
+        criteria_instruction + c for c in validate_filled_schedule_criteria_list
+    ]
 
     # Dynamically create field definitions for the ValidateScheduleResponse class
     fields = {
-        f'reasoning_for_criteria_{i+1}': (str, Field(description=criterion))
-        for i, criterion in enumerate(criteria_list)
+        f"reasoning_for_criteria_{i+1}": (str, Field(description=criterion))
+        for i, criterion in enumerate(validate_filled_schedule_criteria_list)
     }
-    
+
     # Add the actions field
-    fields['actions'] = (
-        list[ScheduleItem],
+    fields["actions"] = (
+        list[ScheduleAction],
         Field(
-            description="Return an empty list if all the criteria are met. Otherwise, add actions to address issues with the schedule.\n\n- In order to remove an item, set its type to 'remove'.\n- In order to add an item, use any ScheduleItemType except 'remove'.\n- Modifications should be done by removing an existing item and adding a new one."
-        )
+            description="""
+Return an empty list if all the criteria are met. Otherwise, add actions to address issues with the schedule.
+
+1. To REMOVE an item: set its type to 'remove'.
+2. To MODIFY an item: return the new item with the same ID as the original item with any ScheduleItemType other than 'remove'.
+3. To ADD a new item: use any ScheduleItemType except 'remove' with a new ID. (Be careful with IDs -- You need to provide an ID that doesn't match any existing item. If you do, the item will be modified instead.)
+            """
+        ),
     )
-    
+
     # Create the ValidateScheduleResponse class dynamically
-    ValidateScheduleResponse = create_model('ValidateScheduleResponse', **fields, __base__=BaseModel)
+    ValidateScheduleResponse = create_model(
+        "ValidateScheduleResponse", **fields, __base__=BaseModel
+    )
 
     prompt = """
 You are an AI tour planner, and just finished filling the schedule. Now you need to check if the schedule meets the provided criteria.
@@ -652,29 +769,28 @@ You are an AI tour planner, and just finished filling the schedule. Now you need
 
 Here is the full schedule that you just filled:
 {full_schedule_string}
-
-
----
-
-
-If all the criteria are met, return an empty list.
     """.format(
         full_schedule_string=convert_schedule_items_to_string(state.schedule_list),
     )
 
+    #! Using O3-mini
     response = (
-        chat_model.with_structured_output(ValidateScheduleResponse)
+        reasoning_model.with_structured_output(ValidateScheduleResponse)
     ).invoke(prompt)
 
     if len(response.actions) == 0:
-        print("\n>>> Terminate: validate_filled_schedule_loop")
+        print("\n>>> Terminate: validate_full_schedule_loop")
         return Command(
             goto=END,
         )
     else:
         return Command(
-            goto=n(validate_filled_schedule_loop),
-            update={n(state.schedule_list): response.actions},
+            goto=n(validate_full_schedule_loop),
+            update={
+                n(state.schedule_list): [
+                    action.schedule_item for action in response.actions
+                ]
+            },
         )
 
 
@@ -709,6 +825,8 @@ g.add_edge(n(init_fill_schedule_loop), n(fill_schedule_loop))
 
 g.add_node(fill_schedule_loop)
 
+g.add_node(fill_schedule_reflection)
+
 g.add_node(fill_terminal_transportation_schedule)
 
-g.add_node(validate_filled_schedule_loop)
+g.add_node(validate_full_schedule_loop)
