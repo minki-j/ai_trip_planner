@@ -306,7 +306,10 @@ async def generate_schedule_ws(websocket: WebSocket):
         print("Error on ws/generate_schedule: ", error_trace)
         ids_in_progress.remove(user["id"])
     finally:
-        await websocket.close()
+        try:
+            await websocket.close()
+        except Exception as e:
+            pass
         ids_in_progress.remove(user["id"])
 
 
