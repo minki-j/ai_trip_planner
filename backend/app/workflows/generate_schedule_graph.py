@@ -143,7 +143,10 @@ async def init_generate_search_query_loop(state: OverallState, writer: StreamWri
 
     format_data = state.model_dump()
     format_data["trip_fixed_schedules_string"] = convert_schedule_items_to_string(
-        state.trip_fixed_schedules, include_ids=False
+        state.trip_fixed_schedules,
+        include_ids=False,
+        include_description=True,
+        include_suggestion=False,
     )
 
     system_prompt = SystemMessage(
@@ -433,9 +436,6 @@ def init_fill_schedule_loop(state: OverallState, writer: StreamWriter):
             for i, r in enumerate(state.internet_search_result_list)
         ]
     )
-    format_data["schedule_string"] = convert_schedule_items_to_string(
-        state.schedule_list
-    )
 
     system_prompt = SystemMessage(
         """
@@ -512,7 +512,7 @@ def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
 Fill the schedule with the best schedule items. Don't need to fill all at once because you'll be asked again until all slots are filled.
 
 Current schedule:
-{convert_schedule_items_to_string(state.schedule_list, include_ids=False, include_description=False)}
+{convert_schedule_items_to_string(state.schedule_list, include_ids=False, include_description=False, include_suggestion=False)}
 
 Empty slots:
 {empty_slots}
@@ -547,7 +547,8 @@ Important Rules:
                 convert_schedule_items_to_string(
                     [action.schedule_item for action in response.actions],
                     include_ids=True,
-                    include_description=False,
+                    include_description=True,
+                    include_suggestion=True,
                 )
             ),
         ]
@@ -758,7 +759,7 @@ You are an AI tour planner, and just finished filling the schedule. Now you need
 Here is the full schedule that you just filled:
 {full_schedule_string}
     """.format(
-        full_schedule_string=convert_schedule_items_to_string(state.schedule_list),
+        full_schedule_string=convert_schedule_items_to_string(state.schedule_list, include_ids=True, include_description=False, include_suggestion=False),
     ).strip()
 
     #! Using O3-mini

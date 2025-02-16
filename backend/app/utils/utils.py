@@ -16,7 +16,10 @@ def convert_messages_to_string(messages: AnyMessage) -> str:
 
 
 def convert_schedule_items_to_string(
-    schedule_items: list[ScheduleItem], include_ids: bool = True, include_description: bool = True
+    schedule_items: list[ScheduleItem],
+    include_ids: bool,
+    include_description: bool,
+    include_suggestion: bool,
 ) -> str:
 
     if not schedule_items:
@@ -25,8 +28,8 @@ def convert_schedule_items_to_string(
     schedule_items = sorted(schedule_items, key=lambda x: x.time.start_time)
 
     result = [
-        f" {"ID | " if include_ids else ""}Time | Type | Title | Location{" | Description" if include_description else ""}"
-    ] # Only include field names at top to save tokens.
+        f" {"ID | " if include_ids else ""}Time | Type | Title | Location{" | Description" if include_description else ""} {" | Suggestion" if include_suggestion else ""}"
+    ]  # Only include field names at top to save tokens.
     for item in schedule_items:
         content = (
             f"- {item.id} | {item.time.start_time}"
@@ -46,8 +49,13 @@ def convert_schedule_items_to_string(
         if include_description and item.description:
             content += f" | {item.description}"
 
+        if include_suggestion and item.suggestion:
+            content += f" | {item.suggestion}"
+
         if item.id > 900:
-            content += " This is a fixed schedule that the user provided. Don't modify it."
+            content += (
+                " This is a fixed schedule that the user provided. Don't modify it."
+            )
 
         result.append(content)
 
@@ -108,16 +116,18 @@ def calculate_empty_slots(
     free_slots = []
     overall_start, overall_end = intervals[0][0], intervals[-1][1]
     slot_duration = timedelta(minutes=30)
-    
+
     # Round up to the next half hour for the start time
     minutes = overall_start.minute
     if minutes > 30:
-        adjusted_start = overall_start.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+        adjusted_start = overall_start.replace(
+            minute=0, second=0, microsecond=0
+        ) + timedelta(hours=1)
     elif minutes > 0 and minutes <= 30:
         adjusted_start = overall_start.replace(minute=30, second=0, microsecond=0)
     else:
         adjusted_start = overall_start.replace(minute=0, second=0, microsecond=0)
-    
+
     current_slot: list[datetime, datetime] = [
         adjusted_start,
         adjusted_start + slot_duration,
