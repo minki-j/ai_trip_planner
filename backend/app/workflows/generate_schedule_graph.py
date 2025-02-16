@@ -609,7 +609,7 @@ Important!! This field is required. Don't forget to return an empty list if all 
 
     response = (
         ChatPromptTemplate.from_messages(messages)
-        | chat_model.with_structured_output(FillScheduleReflectionResponse)
+        | reasoning_model.with_structured_output(FillScheduleReflectionResponse)
     ).invoke({})
 
     messages_to_remove = [
