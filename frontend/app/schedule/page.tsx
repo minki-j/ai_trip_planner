@@ -196,7 +196,7 @@ export default function SchedulePage() {
         await revalidateSchedule(session?.user?.id ?? "");
         setIsLoading(false);
         setIsGenerating(false);
-        router.refresh();
+        window.location.reload();
       };
     } catch (error: any) {
       if (websocket.readyState !== WebSocket.CLOSED) {
