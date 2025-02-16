@@ -1,7 +1,10 @@
 import os
 import json
+import logging
 from typing import Optional
 from varname import nameof as n
+from fastapi.websockets import WebSocketDisconnect
+from websockets.exceptions import ConnectionClosedError
 
 from fastapi import FastAPI, HTTPException, WebSocket, Request, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -24,6 +27,10 @@ from app.workflows.generate_schedule_graph import (
     validate_full_schedule_loop,
     fill_schedule_reflection,
 )
+
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 async def get_current_user_websocket(websocket: WebSocket) -> Optional[dict]:
@@ -56,6 +63,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+ids_in_progress = [] #TODO: This is a temporary solution. Need to use a proper cache instead of a global variable. 
 
 
 @app.get("/health")
@@ -90,6 +99,12 @@ async def get_graph_state(user: dict = Depends(get_current_user_http)):
     if not user:
         return {"error": "No user provided or user not found"}
 
+    if user["id"] in ids_in_progress:
+        return {
+            "connection_closed": True,
+            "error": "The user's schedule is under generation. Please wait until the generation is complete. It may take up to 5 minutes.",
+        }
+
     compiled_entry_graph = await compile_graph_with_async_checkpointer(
         entry_graph, "entry"
     )
@@ -108,7 +123,6 @@ async def update_trip(request: Request):
 
     if not form_data:
         return {"error": "No form data provided"}
-
 
     # Serialize dictionary to pydantic model
     if "trip_fixed_schedules" in form_data and form_data["trip_fixed_schedules"]:
@@ -140,7 +154,7 @@ async def update_trip(request: Request):
     # )
 
     # update the state with form data
-    try: 
+    try:
         await compiled_entry_graph.aupdate_state(
             config,
             form_data,
@@ -223,9 +237,11 @@ async def generate_schedule_ws(websocket: WebSocket):
             return
 
         workflow = await compile_graph_with_async_checkpointer(entry_graph, "entry")
+        send_date_via_websocket = True
 
+        ids_in_progress.append(user["id"])
         async for graph_namespace, stream_mode, data in workflow.astream(
-            {"input": "!! A placeholder input to avoid empty graph invocation error !!"},
+            {"input": ""},
             stream_mode=["custom", "updates"],
             config={
                 "recursion_limit": int(os.environ.get("RECURSION_LIMIT")),
@@ -235,9 +251,25 @@ async def generate_schedule_ws(websocket: WebSocket):
             },
             subgraphs=True,
         ):
+            if not send_date_via_websocket:
+                continue
+
             if stream_mode == "custom":
                 data["data_type"] = "reasoning_steps"
-                await websocket.send_json(data)
+                try:
+                    await websocket.send_json(data)
+                except WebSocketDisconnect:
+                    logger.info("WebSocket connection closed by client")
+                    send_date_via_websocket = False
+                    continue
+                except ConnectionClosedError:
+                    logger.info("WebSocket connection closed unexpectedly")
+                    send_date_via_websocket = False
+                    continue
+                except Exception as e:
+                    logger.error(f"Error sending data via websocket: {str(e)}")
+                    ids_in_progress.remove(user["id"])
+                    break
             else:
                 if update_dict := (
                     data.get(n(add_fixed_schedules))
@@ -248,18 +280,34 @@ async def generate_schedule_ws(websocket: WebSocket):
                     or data.get(n(validate_full_schedule_loop))
                 ):
                     for schedule in update_dict["schedule_list"]:
-                        await websocket.send_json(
-                            {**schedule.model_dump(), "data_type": "schedule"}
-                        )
+                        try:
+                            await websocket.send_json(
+                                {**schedule.model_dump(), "data_type": "schedule"}
+                            )
+                        except WebSocketDisconnect:
+                            logger.info("WebSocket connection closed by client")
+                            send_date_via_websocket = False
+                            continue
+                        except ConnectionClosedError:
+                            logger.info("WebSocket connection closed unexpectedly")
+                            send_date_via_websocket = False
+                            continue
+                        except Exception as e:
+                            logger.error(
+                                f"Error sending schedule via websocket: {str(e)}"
+                            )
+                            ids_in_progress.remove(user["id"])
+                            break
 
     except Exception as e:
         import traceback
 
         error_trace = traceback.format_exc()
         print("Error on ws/generate_schedule: ", error_trace)
-        await websocket.send_json({"error": str(e)})
+        ids_in_progress.remove(user["id"])
     finally:
         await websocket.close()
+        ids_in_progress.remove(user["id"])
 
 
 if __name__ == "__main__":

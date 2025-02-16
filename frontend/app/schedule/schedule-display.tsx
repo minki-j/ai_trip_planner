@@ -203,10 +203,10 @@ export default function ScheduleDisplay({
                     layout
                   >
                     {/* Time Indicator */}
+                    <div className="absolute -left-2 mt-1.5">
+                      <div className="h-4 w-4 rounded-full bg-white border-2 border-gray-300 group-hover:border-gray-400 transition-colors" />
+                    </div>
                     <div className="flex items-center group">
-                      <div className="absolute -left-2 mt-1.5">
-                        <div className="h-4 w-4 rounded-full bg-white border-2 border-gray-300 group-hover:border-gray-400 transition-colors duration-200" />
-                      </div>
                       <time className="mb-1 text-sm font-medium text-gray-600 flex items-center">
                         <Clock className="h-4 w-4 mr-1" />
                         {formatTime(new Date(schedule.time.start_time))}

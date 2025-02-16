@@ -24,20 +24,34 @@ export default function SchedulePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
-  
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
-  
+
   const [isLoading, setIsLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [showReasoningSteps, setShowReasoningSteps] = useState(true);
-  const[isGenerating, setIsGenerating] = useState(false);
-  
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [connectionClosed, setConnectionClosed] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
+
   const stepsContainerRef = useRef<HTMLDivElement>(null);
 
-  // if (!session?.user?.id) {
-  //   router.push("/auth/signin");
-  // }
+  useEffect(() => {
+    if (connectionClosed && timeLeft > 0) {
+      const timer = setInterval(() => {
+        setTimeLeft((prevTime) => {
+          if (prevTime <= 1) {
+            clearInterval(timer);
+            window.location.reload();
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [connectionClosed, timeLeft]);
 
   useEffect(() => {
     if (schedules.length > 0 || reasoningSteps.length > 0) {
@@ -49,7 +63,13 @@ export default function SchedulePage() {
     setIsLoading(true);
     const fetchInitialSchedules = async () => {
       const state = await getGraphState();
+      console.log("state: ", state);
+
       if (state) {
+        if (state.connection_closed) {
+          setConnectionClosed(true);
+          return;
+        }
         if (!state.trip_location) {
           toast({
             title: "Trip Information Not Found",
@@ -155,7 +175,9 @@ export default function SchedulePage() {
             );
           } else {
             setSchedules((prevSchedules) => {
-              const existingIndex = prevSchedules.findIndex((schedule) => schedule.id === response.id);
+              const existingIndex = prevSchedules.findIndex(
+                (schedule) => schedule.id === response.id
+              );
               if (existingIndex !== -1) {
                 // Replace existing schedule
                 const updatedSchedules = [...prevSchedules];
@@ -174,7 +196,7 @@ export default function SchedulePage() {
         await revalidateSchedule(session?.user?.id ?? "");
         setIsLoading(false);
         setIsGenerating(false);
-        router.refresh();        
+        router.refresh();
       };
     } catch (error: any) {
       if (websocket.readyState !== WebSocket.CLOSED) {
@@ -196,6 +218,28 @@ export default function SchedulePage() {
     return <Loading />;
   }
 
+  if (connectionClosed) {
+    return (
+      <div className="w-full mt-[60px] max-w-xl py-5 px-8 flex flex-col gap-3 justify-center items-start">
+        <h1 className="text-lg font-bold">Streaming is not available</h1>
+        <div className="text-md text-muted-foreground space-y-2">
+          <p>The websocket connection to the server has been closed.</p>
+          <p>
+            We are currently working on creating your personalized schedule. While this process is happening behind the scenes, we're not able to show you the real-time progress yet.
+          </p>
+          <p>
+            Please wait until the generation is complete. It may take up to 5
+            minutes. Apologies for the inconvenience.
+          </p>
+        </div>
+        <div className="mt-4 text-sm font-medium">
+          Time remaining: {Math.floor(timeLeft / 60)}:
+          {String(timeLeft % 60).padStart(2, "0")}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mt-[60px] mx-auto max-w-3xl">
       {/* Main content */}
@@ -207,8 +251,8 @@ export default function SchedulePage() {
             <ScheduleDisplay
               schedules={schedules}
               startGeneration={startGeneration}
-                setIsEditMode={setIsEditMode}
-                isGenerating={isGenerating}
+              setIsEditMode={setIsEditMode}
+              isGenerating={isGenerating}
             />
           )}
         </div>

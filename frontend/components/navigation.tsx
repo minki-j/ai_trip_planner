@@ -119,12 +119,12 @@ export function Navigation() {
                   >
                     Sign Out
                   </DropdownMenuItem>
-                  <DropdownMenuItem
+                  {/* <DropdownMenuItem
                     onClick={() => resetAgentState()}
                     className="cursor-pointer"
                   >
                     Reset Agent State
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> */}
                   <DropdownMenuItem
                     onClick={() => window.location.href = '/about'}
                     className="cursor-pointer"
