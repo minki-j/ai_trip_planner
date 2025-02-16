@@ -51,7 +51,7 @@ export default async function TripInfoPage() {
     return (
       <div className="container mx-auto mt-[100px] px-8 flex flex-col items-start justify-center space-y-4 text-start">
         <p>
-          While I'm generating your schedule, you can't modify your trip
+          While the assistant is generating your schedule, you can't modify your trip
           information.
         </p>
         <p />

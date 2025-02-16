@@ -24,8 +24,7 @@ export async function getGraphState() {
       },
       [`graph-state-${userId}`],
       {
-        // revalidate: 120, // 2 minutes
-        revalidate: 10, // 10 seconds
+        revalidate: 120, // 2 minutes
         tags: [`user-${userId}`],
       }
     )();

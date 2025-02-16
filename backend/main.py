@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.websockets import WebSocketDisconnect
 from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
+import redis.asyncio as redis
+from datetime import timedelta
 
 from langgraph.errors import InvalidUpdateError
 
@@ -30,7 +32,7 @@ from app.workflows.generate_schedule_graph import (
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.CRITICAL)
 
 
 async def get_current_user_websocket(websocket: WebSocket) -> Optional[dict]:
@@ -56,15 +58,31 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "ws://localhost:3000",
-        # "https://backend-production-c134.up.railway.app",
-        # "https://englishtutor-production.up.railway.app",
+        "https://aitourassistant-production.up.railway.app/",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-ids_in_progress = [] #TODO: This is a temporary solution. Need to use a proper cache instead of a global variable. 
+# Initialize Redis client
+redis_url = os.getenv('REDIS_URL')
+if not redis_url:
+    logger.warning("REDIS_URL not found in environment variables, using localhost")
+    redis_url = "redis://localhost:6379"
+
+try:
+    redis_client = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+    logger.info(f"Connected to Redis at {redis_url}")
+except Exception as e:
+    logger.error(f"Failed to connect to Redis: {str(e)}")
+    raise
+
+# Key prefix for Redis
+REDIS_KEY_PREFIX = "tour_assistant:ids_in_progress:"
+
+# Time to live for Redis keys
+REDIS_TTL = timedelta(minutes=20)
 
 
 @app.get("/health")
@@ -99,7 +117,8 @@ async def get_graph_state(user: dict = Depends(get_current_user_http)):
     if not user:
         return {"error": "No user provided or user not found"}
 
-    if user["id"] in ids_in_progress:
+    # Check if user ID exists in Redis
+    if await redis_client.exists(f"{REDIS_KEY_PREFIX}{user['id']}"):
         return {
             "connection_closed": True,
             "error": "The user's schedule is under generation. Please wait until the generation is complete. It may take up to 5 minutes.",
@@ -239,7 +258,10 @@ async def generate_schedule_ws(websocket: WebSocket):
         workflow = await compile_graph_with_async_checkpointer(entry_graph, "entry")
         send_date_via_websocket = True
 
-        ids_in_progress.append(user["id"])
+        # Add user ID to Redis with TTL
+        await redis_client.setex(f"{REDIS_KEY_PREFIX}{user['id']}", REDIS_TTL, '1')
+        logger.critical(f"User ID {user['id']} is added to Redis")
+
         async for graph_namespace, stream_mode, data in workflow.astream(
             {"input": ""},
             stream_mode=["custom", "updates"],
@@ -268,7 +290,6 @@ async def generate_schedule_ws(websocket: WebSocket):
                     continue
                 except Exception as e:
                     logger.error(f"Error sending data via websocket: {str(e)}")
-                    ids_in_progress.remove(user["id"])
                     break
             else:
                 if update_dict := (
@@ -296,7 +317,6 @@ async def generate_schedule_ws(websocket: WebSocket):
                             logger.error(
                                 f"Error sending schedule via websocket: {str(e)}"
                             )
-                            ids_in_progress.remove(user["id"])
                             break
 
     except Exception as e:
@@ -304,13 +324,12 @@ async def generate_schedule_ws(websocket: WebSocket):
 
         error_trace = traceback.format_exc()
         print("Error on ws/generate_schedule: ", error_trace)
-        ids_in_progress.remove(user["id"])
     finally:
         try:
             await websocket.close()
         except Exception as e:
             pass
-        ids_in_progress.remove(user["id"])
+        await redis_client.delete(f"{REDIS_KEY_PREFIX}{user['id']}")
 
 
 if __name__ == "__main__":

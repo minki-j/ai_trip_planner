@@ -34,8 +34,8 @@ class ScheduleItem(BaseModel):
     time: ScheduleItemTime
     location: str
     title: str
-    description: str | None 
-    suggestion: str | None
+    description: str | None = Field(description="A brief description of the schedule.")
+    suggestion: str | None = Field(description="Detailed suggestions or tips for the schedule.")
 
 
 # ===========================================

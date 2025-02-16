@@ -54,7 +54,7 @@ def convert_schedule_items_to_string(
 
         if item.id > 900:
             content += (
-                " This is a fixed schedule that the user provided. Don't modify it."
+                "  (This is a fixed schedule that the user provided. Don't modify it.)"
             )
 
         result.append(content)

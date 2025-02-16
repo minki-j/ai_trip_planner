@@ -759,7 +759,7 @@ You are an AI tour planner, and just finished filling the schedule. Now you need
 Here is the full schedule that you just filled:
 {full_schedule_string}
     """.format(
-        full_schedule_string=convert_schedule_items_to_string(state.schedule_list, include_ids=True, include_description=False, include_suggestion=False),
+        full_schedule_string=convert_schedule_items_to_string(state.schedule_list, include_ids=True, include_description=True, include_suggestion=True),
     ).strip()
 
     #! Using O3-mini
