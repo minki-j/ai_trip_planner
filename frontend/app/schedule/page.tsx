@@ -42,6 +42,7 @@ export default function SchedulePage() {
         setTimeLeft((prevTime) => {
           if (prevTime <= 1) {
             clearInterval(timer);
+            setConnectionClosed(false);
             window.location.reload();
             return 0;
           }
@@ -63,7 +64,6 @@ export default function SchedulePage() {
     setIsLoading(true);
     const fetchInitialSchedules = async () => {
       const state = await getGraphState();
-      console.log("state: ", state);
 
       if (state) {
         if (state.connection_closed) {
