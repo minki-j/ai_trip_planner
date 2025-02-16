@@ -10,19 +10,23 @@ export async function updateTrip(formData: Record<string, any>) {
   return withAuth(async (userId) => {
     formData["id"] = userId;
 
-    const localized_trip_fixed_schedules = JSON.parse(
-      formData["trip_fixed_schedules"]
-    ).map((s: any) => {
-      s.time = {
-        start_time: formatLocalTime(s.time.start_time),
-        end_time: s.time.end_time && formatLocalTime(s.time.end_time),
-      };
-      return s;
-    });
+    if (formData["trip_fixed_schedules"]) {
+      const localized_trip_fixed_schedules = JSON.parse(
+        formData["trip_fixed_schedules"]
+      ).map((s: any) => {
+        s.time = {
+          start_time: formatLocalTime(s.time.start_time),
+          end_time: s.time.end_time && formatLocalTime(s.time.end_time),
+        };
+        return s;
+      });
 
-    formData["trip_fixed_schedules"] = JSON.stringify(
-      localized_trip_fixed_schedules
-    );
+      formData["trip_fixed_schedules"] = JSON.stringify(
+        localized_trip_fixed_schedules
+      );
+    } else {
+      formData["trip_fixed_schedules"] = "[]";
+    }
 
     const response = await fetch(
       `${backendUrl}/update_trip?user_id=${userId}`,
