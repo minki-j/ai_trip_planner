@@ -191,85 +191,88 @@ export default function ScheduleDisplay({
                 const Icon = styling.icon;
 
                 return (
-                  <motion.div
-                    key={schedule.id}
-                    className="mb-8 ml-4"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{
-                      delay: index * 0.1,
-                      layout: { duration: 0.3 },
-                    }}
-                    layout
-                  >
+                  <div>
+                    {" "}
                     {/* Time Indicator */}
                     <div className="absolute -left-2 mt-1.5">
                       <div className="h-4 w-4 rounded-full bg-white border-2 border-gray-300 group-hover:border-gray-400 transition-colors" />
                     </div>
-                    <div className="flex items-center group">
-                      <time className="mb-1 text-sm font-medium text-gray-600 flex items-center">
-                        <Clock className="h-4 w-4 mr-1" />
-                        {formatTime(new Date(schedule.time.start_time))}
-                        {schedule.time.end_time && (
-                          <>
-                            <span className="mx-2">-</span>
-                            {formatTime(new Date(schedule.time.end_time))}
-                          </>
-                        )}
-                      </time>
-                    </div>
-
-                    {/* Schedule Card */}
-                    <div
-                      className={`p-6 rounded-lg ${styling.bg} border ${styling.border} mt-2 transition-all duration-200 hover:shadow-md`}
-                      role="article"
-                      aria-label={`Schedule: ${schedule.title}`}
+                    <motion.div
+                      key={schedule.id}
+                      className="mb-8 ml-4"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{
+                        delay: index * 0.1,
+                        layout: { duration: 0.3 },
+                      }}
+                      layout
                     >
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <h3 className="text-md sm:text-lg font-semibold text-gray-900">
-                            {schedule.title}
-                          </h3>
-                          <Icon className="h-6 w-6" />
-                        </div>
-                        <a
-                          href={
-                            schedule.location.includes(" to ")
-                              ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
-                                  schedule.location.split(" to ")[0]
-                                )}&destination=${encodeURIComponent(
-                                  schedule.location.split(" to ")[1]
-                                )}`
-                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                  schedule.location
-                                )}`
-                          }
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-start mb-3 hover:underline hover:text-blue-800 transition-colors"
-                        >
-                          <img
-                            src="/Google Maps Icon 2020.svg"
-                            alt="Google Maps"
-                            className="h-4 w-4 mr-2 flex-shrink-0"
-                          />
-                          <p className="text-[12px] sm:text-sm b-0 p-0">
-                            {schedule.location}
-                          </p>
-                        </a>
-                        {schedule.description && (
-                          <p className="text-xs sm:text-sm text-gray-700 mb-0 sm:mb-2 leading-relaxed">
-                            {schedule.description}
-                          </p>
-                        )}
-                        {schedule.suggestion && (
-                          <p className="text-xs sm:text-sm text-gray-600 mb-0leading-relaxed">
-                            {schedule.suggestion}
-                          </p>
-                        )}
+                      <div className="flex items-center group">
+                        <time className="mb-1 text-sm font-medium text-gray-600 flex items-center">
+                          <Clock className="h-4 w-4 mr-1" />
+                          {formatTime(new Date(schedule.time.start_time))}
+                          {schedule.time.end_time && (
+                            <>
+                              <span className="mx-2">-</span>
+                              {formatTime(new Date(schedule.time.end_time))}
+                            </>
+                          )}
+                        </time>
                       </div>
-                    </div>
-                  </motion.div>
+
+                      {/* Schedule Card */}
+                      <div
+                        className={`p-6 rounded-lg ${styling.bg} border ${styling.border} mt-2 transition-all duration-200 hover:shadow-md`}
+                        role="article"
+                        aria-label={`Schedule: ${schedule.title}`}
+                      >
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-md sm:text-lg font-semibold text-gray-900">
+                              {schedule.title}
+                            </h3>
+                            <Icon className="h-6 w-6" />
+                          </div>
+                          <a
+                            href={
+                              schedule.location.includes(" to ")
+                                ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+                                    schedule.location.split(" to ")[0]
+                                  )}&destination=${encodeURIComponent(
+                                    schedule.location.split(" to ")[1]
+                                  )}`
+                                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                    schedule.location
+                                  )}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-start mb-3 hover:underline hover:text-blue-800 transition-colors"
+                          >
+                            <img
+                              src="/Google Maps Icon 2020.svg"
+                              alt="Google Maps"
+                              className="h-4 w-4 mr-2 flex-shrink-0"
+                            />
+                            <p className="text-[12px] sm:text-sm b-0 p-0">
+                              {schedule.location}
+                            </p>
+                          </a>
+                          {schedule.description && (
+                            <p className="text-xs sm:text-sm text-gray-700 mb-0 sm:mb-2 leading-relaxed">
+                              {schedule.description}
+                            </p>
+                          )}
+                          {schedule.suggestion && (
+                            <p className="text-xs sm:text-sm text-gray-600 mb-0leading-relaxed">
+                              {schedule.suggestion}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
                 );
               })}
             </motion.div>
@@ -313,7 +316,9 @@ export default function ScheduleDisplay({
                 </Button>
               </div>
             ) : (
-              <p className="pl-4 text-xs animate-pulse">Generating schedule...</p>
+              <p className="pl-4 text-xs animate-pulse">
+                Generating schedule...
+              </p>
             )}
           </div>
           <div className="flex items-center justify-end space-x-4">
