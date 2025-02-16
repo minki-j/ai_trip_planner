@@ -276,7 +276,7 @@ export default function ScheduleDisplay({
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-start mb-3 hover:underline hover:text-blue-800 transition-colors"
+                            className="flex items-center justify-start mb-0 hover:underline hover:text-blue-800 transition-colors"
                           >
                             <img
                               src="/Google Maps Icon 2020.svg"
@@ -299,7 +299,7 @@ export default function ScheduleDisplay({
                           )}
                         </div>
                         <div
-                          className="cursor-pointer rounded transition-all duration-200"
+                          className="cursor-pointer rounded transition-all duration-200 pt-3"
                           onClick={toggleExpanded}
                         >
                           <motion.div
@@ -307,7 +307,7 @@ export default function ScheduleDisplay({
                             transition={{ duration: 0.3 }}
                             className="flex items-center justify-center"
                           >
-                            <ChevronDown className="h-5 w-full text-gray-300" />
+                            <ChevronDown className={`h-5 w-full text-gray-200`} />
                           </motion.div>
                         </div>
                       </motion.div>
