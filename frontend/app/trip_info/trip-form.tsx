@@ -74,10 +74,10 @@ export function TripForm({ user }: { user: User }) {
 
     if (success) {
       toast({
-        title: "Success",
-        description: "Your profile has been updated successfully.",
+        title: "Your profile has been updated successfully",
+        description: "Now you can generate a schedule based on that.",
       });
-      // redirect("/schedule");
+      redirect("/schedule");
     } else {
       toast({
         title: "Error",

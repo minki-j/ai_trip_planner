@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ScheduleItem,
   ScheduleItemType,
@@ -7,6 +7,7 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Clock,
   Plane,
   Bus,
@@ -27,6 +28,16 @@ interface ScheduleDisplayProps {
   startGeneration: () => void;
   setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>;
   isGenerating: boolean;
+}
+
+interface ExpandableItemProps {
+  schedule: ScheduleItem;
+  styling: {
+    bg: string;
+    border: string;
+    icon: any;
+  };
+  formatTime: (date: Date) => string;
 }
 
 // Helper function to check if two dates are the same day
@@ -65,6 +76,12 @@ export default function ScheduleDisplay({
 
   // Initialize current date to the earliest date if available
   const [currentDate, setCurrentDate] = useState(dateRange.earliest);
+  const [expandedItems, setExpandedItems] = useState<{[key: string]: boolean}>({});
+
+  // Scroll to top when currentDate changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentDate]);
 
   // Navigation handlers
   const handlePreviousDay = () => {
@@ -190,9 +207,16 @@ export default function ScheduleDisplay({
                 const styling = getScheduleStyling(schedule.activity_type);
                 const Icon = styling.icon;
 
+                const isExpanded = expandedItems[schedule.id || index.toString()];
+                const toggleExpanded = () => {
+                  setExpandedItems(prev => ({
+                    ...prev,
+                    [schedule.id || index.toString()]: !prev[schedule.id || index.toString()]
+                  }));
+                };
+
                 return (
-                  <div>
-                    {" "}
+                  <div key={schedule.id || index}>
                     {/* Time Indicator */}
                     <div className="absolute -left-2 mt-1.5">
                       <div className="h-4 w-4 rounded-full bg-white border-2 border-gray-300 group-hover:border-gray-400 transition-colors" />
@@ -222,16 +246,20 @@ export default function ScheduleDisplay({
                       </div>
 
                       {/* Schedule Card */}
-                      <div
-                        className={`p-6 rounded-lg ${styling.bg} border ${styling.border} mt-2 transition-all duration-200 hover:shadow-md`}
+                      <motion.div
+                        className={`p-6 pb-0 rounded-lg ${styling.bg} border ${styling.border} mt-2 transition-all duration-200`}
                         role="article"
                         aria-label={`Schedule: ${schedule.title}`}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
                       >
                         <div className="flex flex-col gap-2">
                           <div className="flex items-center justify-between gap-3">
-                            <h3 className="text-md sm:text-lg font-semibold text-gray-900">
-                              {schedule.title}
-                            </h3>
+                            <div className="flex-1">
+                              <h3 className="text-md sm:text-lg font-semibold text-gray-900">
+                                {schedule.title}
+                              </h3>
+                            </div>
                             <Icon className="h-6 w-6" />
                           </div>
                           <a
@@ -259,18 +287,30 @@ export default function ScheduleDisplay({
                               {schedule.location}
                             </p>
                           </a>
-                          {schedule.description && (
+                          {schedule.description && isExpanded && (
                             <p className="text-xs sm:text-sm text-gray-700 mb-0 sm:mb-2 leading-relaxed">
                               {schedule.description}
                             </p>
                           )}
-                          {schedule.suggestion && (
+                          {schedule.suggestion && isExpanded && (
                             <p className="text-xs sm:text-sm text-gray-600 mb-0leading-relaxed">
                               {schedule.suggestion}
                             </p>
                           )}
                         </div>
-                      </div>
+                        <div
+                          className="cursor-pointer rounded transition-all duration-200"
+                          onClick={toggleExpanded}
+                        >
+                          <motion.div
+                            animate={{ rotate: isExpanded ? 180 : 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="flex items-center justify-center"
+                          >
+                            <ChevronDown className="h-5 w-full text-gray-300" />
+                          </motion.div>
+                        </div>
+                      </motion.div>
                     </motion.div>
                   </div>
                 );

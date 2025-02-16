@@ -36,7 +36,7 @@ export function Navigation() {
   ];
 
   return (
-    <nav className="border-b bg-background z-[999] h-[60px] fixed top-0 w-full">
+    <nav className="border-b bg-background shadow-md z-[999] h-[60px] fixed top-0 w-full">
       <div className="container mx-auto max-w-3xl px-4 py-2 sm:py-3">
         <div className="flex w-full items-center justify-between space-x-8">
           <div className="flex items-center space-x-6">

@@ -89,7 +89,6 @@ export default async function TripInfoPage() {
 
   return (
     <div className="container mx-auto py-4 mt-[60px] max-w-2xl px-4">
-      {/* <h1 className="text-xl font-bold mb-6">Trip Information</h1> */}
       <TripForm user={user} />
     </div>
   );
