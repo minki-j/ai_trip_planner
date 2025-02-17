@@ -155,21 +155,6 @@ export function TripForm({ user }: { user: User }) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="user_interests" className="block text-sm font-medium">
-          Interests
-        </Label>
-        <Input
-          type="text"
-          id="user_interests"
-          name="user_interests"
-          defaultValue={user.user_interests ?? ""}
-          placeholder="e.g. History, Pizza, Jazz, Architecture"
-          required
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
-        />
-      </div>
-
-      <div className="space-y-2">
         <Label htmlFor="trip_location" className="block text-sm font-medium">
           Where are you visiting?
         </Label>
@@ -200,32 +185,6 @@ export function TripForm({ user }: { user: User }) {
             <SelectItem value="budget friendly">Budget-Friendly</SelectItem>
             <SelectItem value="moderate">Moderate</SelectItem>
             <SelectItem value="luxury">Luxury</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="trip_theme" className="block text-sm font-medium">
-          Theme
-        </Label>
-        <Select name="trip_theme" defaultValue={user.trip_theme ?? ""} required>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select a trip theme" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Cultural & Heritage">
-              Cultural & Heritage
-            </SelectItem>
-            <SelectItem value="Adventure & Outdoor">
-              Adventure & Outdoor
-            </SelectItem>
-            <SelectItem value="Relaxation & Wellness">
-              Relaxation & Wellness
-            </SelectItem>
-            <SelectItem value="Culinary & Food">Culinary & Food</SelectItem>
-            <SelectItem value="Urban Exploration">Urban Exploration</SelectItem>
-            <SelectItem value="Nature & Wildlife">Nature & Wildlife</SelectItem>
-            <SelectItem value="Luxury & Premium">Luxury & Premium</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -358,6 +317,47 @@ export function TripForm({ user }: { user: User }) {
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="trip_theme" className="block text-sm font-medium">
+          Theme
+        </Label>
+        <Select name="trip_theme" defaultValue={user.trip_theme ?? ""} required>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select a trip theme" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Cultural & Heritage">
+              Cultural & Heritage
+            </SelectItem>
+            <SelectItem value="Adventure & Outdoor">
+              Adventure & Outdoor
+            </SelectItem>
+            <SelectItem value="Relaxation & Wellness">
+              Relaxation & Wellness
+            </SelectItem>
+            <SelectItem value="Culinary & Food">Culinary & Food</SelectItem>
+            <SelectItem value="Urban Exploration">Urban Exploration</SelectItem>
+            <SelectItem value="Nature & Wildlife">Nature & Wildlife</SelectItem>
+            <SelectItem value="Luxury & Premium">Luxury & Premium</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="user_interests" className="block text-sm font-medium">
+          Interests
+        </Label>
+        <Input
+          type="text"
+          id="user_interests"
+          name="user_interests"
+          defaultValue={user.user_interests ?? ""}
+          placeholder="e.g. History, Pizza, Jazz, Architecture"
+          required
+          className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="space-y-2">
         <Label
           htmlFor="trip_fixed_schedules"
           className="block text-sm font-medium"
@@ -401,7 +401,8 @@ export function TripForm({ user }: { user: User }) {
                   </div>
                   <div className="text-sm text-muted-foreground grid grid-cols-2 gap-2">
                     <div>
-                      <span className="font-medium">Type:</span> {schedule.activity_type}
+                      <span className="font-medium">Type:</span>{" "}
+                      {schedule.activity_type}
                     </div>
                     <div>
                       <span className="font-medium">Location:</span>{" "}
