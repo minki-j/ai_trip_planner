@@ -14,27 +14,61 @@ import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { returnWebSockerURL } from "@/lib/utils";
 import { ScheduleItem } from "@/models/Schedule";
+import ReactMarkdown from "react-markdown";
 
 interface ReasoningStep {
   title: string;
   description: string;
 }
 
+const DELAY_TIME = 1500;
+
 export default function SchedulePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const lastStepRef = useRef<HTMLDivElement>(null);
 
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [reasoningSteps, setReasoningSteps] = useState<ReasoningStep[]>([]);
+  const [reasoningStepShortMSG, setReasoningStepShortMSG] = useState<string[]>(
+    []
+  );
+  const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0);
+  const [delaySeconds, setDelaySeconds] = useState(-DELAY_TIME);
+
+  const stepsContainerRef = useRef<HTMLDivElement>(null);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [showReasoningSteps, setShowReasoningSteps] = useState(true);
+  const [showReasoningSteps, setShowReasoningSteps] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [connectionClosed, setConnectionClosed] = useState(false);
   const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
 
-  const stepsContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (lastStepRef.current) {
+      lastStepRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [reasoningSteps]);
+
+  // Delayed update for short reasoning messages
+  useEffect(() => {
+    const incrementDisplay = () => {
+      if (currentDisplayIndex < reasoningStepShortMSG.length - 1) {
+        setCurrentDisplayIndex((prev) => prev + 1);
+        setDelaySeconds((delaySeconds) => delaySeconds - DELAY_TIME);
+      } else {
+        setDelaySeconds(0);
+      }
+    };
+    if (delaySeconds === 0) {
+      if (currentDisplayIndex != 0) {
+        setCurrentDisplayIndex((prev) => prev + 1);
+      }
+    }
+    setDelaySeconds((delaySeconds) => delaySeconds + DELAY_TIME);
+    setTimeout(incrementDisplay, delaySeconds + DELAY_TIME);
+  }, [reasoningStepShortMSG]);
 
   useEffect(() => {
     if (connectionClosed && timeLeft > 0) {
@@ -127,6 +161,7 @@ export default function SchedulePage() {
     setIsLoading(true);
     await resetAgentStateAction();
     setReasoningSteps([]);
+    setReasoningStepShortMSG(["Start planning your trip!"]);
     setSchedules([]);
     setIsGenerating(true);
 
@@ -166,7 +201,14 @@ export default function SchedulePage() {
         }
 
         if (response.data_type == "reasoning_steps") {
-          setReasoningSteps((prevSteps) => [...prevSteps, response]);
+          console.log("WebSocket response: ", response);
+
+          if (response.long) {
+            setReasoningSteps((prevSteps) => [...prevSteps, response.long]);
+          }
+          if (response.short) {
+            setReasoningStepShortMSG((prev) => [...prev, response.short]);
+          }
         } else if (response.data_type == "schedule") {
           delete response.data_type;
           if (response.activity_type == "REMOVE") {
@@ -225,7 +267,9 @@ export default function SchedulePage() {
         <div className="text-md text-muted-foreground space-y-2">
           <p>The websocket connection to the server has been closed.</p>
           <p>
-            We are currently working on creating your personalized schedule. While this process is happening behind the scenes, we're not able to show you the real-time progress yet.
+            We are currently working on creating your personalized schedule.
+            While this process is happening behind the scenes, we're not able to
+            show you the real-time progress yet.
           </p>
           <p>
             Please wait until the generation is complete. It may take up to 5
@@ -242,6 +286,63 @@ export default function SchedulePage() {
 
   return (
     <div className="container mt-[60px] mx-auto max-w-3xl">
+      {/* Reasoning Steps */}
+      {reasoningSteps.length > 0 && showReasoningSteps && (
+        <div
+          ref={stepsContainerRef}
+          className="p-4 space-y-4 h-[50vh] overflow-y-scroll scrollbar-show bg-gray-100 sticky bottom-7"
+        >
+          {reasoningSteps.map((step, index) => (
+            <div
+              key={index}
+              className="border-l-2 border-primary/20 pl-4"
+              ref={index === reasoningSteps.length - 1 ? lastStepRef : null}
+            >
+              <h3 className="text-sm font-medium text-primary mb-2">
+                {step.title}
+              </h3>
+              <ReactMarkdown
+                components={{
+                  p: ({ node, children }) => (
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {children}
+                    </p>
+                  ),
+                  ul: ({ node, children }) => (
+                    <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
+                      {children}
+                    </ul>
+                  ),
+                  ol: ({ node, children }) => (
+                    <ol className="list-decimal pl-4 space-y-1 text-sm text-muted-foreground">
+                      {children}
+                    </ol>
+                  ),
+                }}
+                className="prose prose-sm max-w-none prose-neutral dark:prose-invert"
+              >
+                {step.description}
+              </ReactMarkdown>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Short Reasoning Step */}
+      {(reasoningSteps.length > 0 || reasoningStepShortMSG) && (
+        <button
+          onClick={() => setShowReasoningSteps(!showReasoningSteps)}
+          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-100 sticky bottom-0 animate-pulse"
+          aria-label={
+            showReasoningSteps ? "Hide reasoning steps" : "Show reasoning steps"
+          }
+        >
+          <div className="flex items-center gap-2 text-sm">
+            <span>{reasoningStepShortMSG[currentDisplayIndex]}</span>
+          </div>
+        </button>
+      )}
+
       {/* Main content */}
       {schedules.length > 0 ? (
         <div>
@@ -290,77 +391,6 @@ export default function SchedulePage() {
           </Button>
         </div>
       )}
-
-      {/* Reasoning Steps */}
-      {/* {reasoningSteps.length > 0 && showReasoningSteps && (
-        <div
-          ref={stepsContainerRef}
-          className="p-4 space-y-4 h-[30vh] overflow-y-scroll scrollbar-show bg-gray-100 sticky bottom-7"
-        >
-          {reasoningSteps.map((step, index) => (
-            <div key={index} className="border-l-2 border-primary/20 pl-4 py-2">
-              <h3 className="text-sm font-medium text-primary mb-2">
-                {step.title}
-              </h3>
-              <ReactMarkdown
-                components={{
-                  p: ({ node, children }) => (
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {children}
-                    </p>
-                  ),
-                  ul: ({ node, children }) => (
-                    <ul className="list-disc pl-4 space-y-1 text-sm text-muted-foreground">
-                      {children}
-                    </ul>
-                  ),
-                  ol: ({ node, children }) => (
-                    <ol className="list-decimal pl-4 space-y-1 text-sm text-muted-foreground">
-                      {children}
-                    </ol>
-                  ),
-                }}
-                className="prose prose-sm max-w-none prose-neutral dark:prose-invert"
-              >
-                {step.description}
-              </ReactMarkdown>
-            </div>
-          ))}
-        </div>
-      )} */}
-
-      {/* Show/Hide reasoning steps button */}
-      {/* {reasoningSteps.length > 0 && (
-        <button
-          onClick={() => setShowReasoningSteps(!showReasoningSteps)}
-          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-200 sticky bottom-0"
-          aria-label={
-            showReasoningSteps ? "Hide reasoning steps" : "Show reasoning steps"
-          }
-        >
-          <div className="flex items-center gap-2 text-sm">
-            <span>
-              {showReasoningSteps
-                ? "Hide reasoning steps"
-                : "Show reasoning steps"}
-            </span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className={`w-4 h-4 transition-transform ${
-                showReasoningSteps ? "" : "transform rotate-180"
-              }`}
-            >
-              <path
-                fillRule="evenodd"
-                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-        </button>
-      )} */}
     </div>
   );
 }

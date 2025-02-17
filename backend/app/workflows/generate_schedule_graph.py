@@ -33,7 +33,12 @@ from app.state import (
     extend_list,
 )
 from app.models import Role
-from app.llms import chat_model, perplexity_chat_model, reasoning_model
+from app.llms import (
+    chat_model,
+    perplexity_chat_model,
+    reasoning_model,
+    small_model_for_summarization,
+)
 from app.utils.utils import convert_schedule_items_to_string, calculate_empty_slots
 
 
@@ -45,6 +50,7 @@ MAX_INTERNET_SEARCH = 10
 
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: calculate_how_many_schedules")
+    writer({"short": "Calculating free hours of your trip", "long": None})
 
     class FreeHourResponse(BaseModel):
         think_out_loud: str = Field(description="Think out loud your calculation")
@@ -77,8 +83,8 @@ Before returning the result, think out loud on how you calculate the number of f
 
     writer(
         {
-            "title": f"Calculate that you have {response.free_hours} free hours",
-            "description": response.think_out_loud,
+            "short": f"Calculated free hours: {response.free_hours}",
+            "long": None,
         }
     )
 
@@ -87,8 +93,9 @@ Before returning the result, think out loud on how you calculate the number of f
     }
 
 
-def add_terminal_schedules(state: OverallState):
+def add_terminal_schedules(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: add_terminal_schedules")
+    writer({"short": "Adding terminal schedules", "long": None})
 
     arrival_time = f"{state.trip_arrival_date} {state.trip_arrival_time}"
     departure_time = f"{state.trip_departure_date} {state.trip_departure_time}"
@@ -123,11 +130,12 @@ def add_terminal_schedules(state: OverallState):
     }
 
 
-def add_fixed_schedules(state: OverallState):
+def add_fixed_schedules(state: OverallState, writer: StreamWriter):
     if not state.trip_fixed_schedules:
         print("\n>>> SKIP: add_fixed_schedules (No fixed schedules provided)")
         return {}
     print("\n>>> NODE: add_fixed_schedules")
+    writer({"short": "Adding fixed schedules", "long": None})
 
     # check all fixed schedules are type of ScheduleItem
     if not all(isinstance(s, ScheduleItem) for s in state.trip_fixed_schedules):
@@ -140,6 +148,7 @@ def add_fixed_schedules(state: OverallState):
 
 async def init_generate_search_query_loop(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: init_generate_search_query_loop")
+    writer({"short": "Generating queries for internet search", "long": None})
 
     format_data = state.model_dump()
     format_data["trip_fixed_schedules_string"] = convert_schedule_items_to_string(
@@ -211,18 +220,21 @@ Important notes:
         | chat_model.with_structured_output(Queries)
     ).invoke({})
 
+    writer(
+        {
+            "short": f"Generated {len(response.queries)} queries",
+            "long": {
+                "title": "Queries to look up on the internet",
+                "description": "\n".join([f"- {q.query}" for q in response.queries]),
+            },
+        }
+    )
+
     response_dict_with_id = []
     for i, query in enumerate(response.queries):
         query_dict = query.model_dump()
         query_dict["id"] = i
         response_dict_with_id.append(query_dict)
-
-    writer(
-        {
-            "title": "Queries to look up on the internet",
-            "description": "\n".join([f"- {q.query}" for q in response.queries]),
-        }
-    )
 
     return {
         "loop_iteration": 1,
@@ -253,6 +265,7 @@ def generate_search_query_loop(
     state: GenerateSearchQueryLoopState, writer: StreamWriter
 ):
     print("\n>>> NODE: generate_search_query_loop")
+    writer({"short": "Reviewing search queries for improvement (loop)", "long": None})
 
     class GenerateSearchQueryActionsType(str, Enum):
         ADD = "add"
@@ -294,6 +307,12 @@ def generate_search_query_loop(
         or state.loop_iteration >= MAX_NUM_OF_LOOPS
     ):
         # If the current queries are good enough or the maximum number of queries has been reached, then terminate the loop and start the internet search nodes in parallel
+        writer(
+            {
+                "short": f"Starting {len(state.search_queries)} internet search in parallel",
+                "long": None,
+            }
+        )
         return Command(
             goto=[
                 Send(
@@ -335,25 +354,7 @@ def generate_search_query_loop(
                         query.query = action.new_query_value
                         break
 
-        writer(
-            {
-                "title": "Validation result",
-                "description": "\n".join(
-                    [
-                        f"- {action.rationale} / {action.activity_type.value} query with id {action.query_id} -> {action.new_query_value}"
-                        for action in response.actions
-                        if action.activity_type != ActionsType.SKIP
-                    ]
-                ),
-            }
-        )
-
-        writer(
-            {
-                "title": "Improved queries",
-                "description": "\n".join([f"- {q.query}" for q in queries]),
-            }
-        )
+        writer({"short": f"Found {len(response.actions)} improvements", "long": None})
 
         # Create a new message that contains the LLM's actions
         new_message = AIMessage(
@@ -411,12 +412,19 @@ Important Rules
 
     response = (perplexity_chat_model | StrOutputParser()).invoke(prompt)
 
-    # writer(
-    #     {
-    #         "title": f"{state.query}",
-    #         "description": response,
-    #     }
-    # )
+    summarized_response = small_model_for_summarization.invoke(
+        f"Summarize the following internet search result in a single paragraph. If there are list of tourist attractions, places of interest, or landmarks, include all of them in the summary. Here is the result:\n{response}"
+    )
+
+    writer(
+        {
+            "short": None,
+            "long": {
+                "title": f"Internet search result",
+                "description": f"Query: {state.query}\nSummarized result: {summarized_response}",
+            },
+        }
+    )
 
     result = {
         "query": state.query,
@@ -499,11 +507,13 @@ def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
     )
     if not empty_slots:
         print("\n>>> Terminate: fill_schedule_loop")
+        writer({"short": "Completed filling all schedule items", "long": None})
         return Command(
             goto=n(validate_full_schedule_loop),
         )
 
     print("\n>>> NODE: fill_schedule_loop")
+    writer({"short": "Filling schedule items (loop)", "long": None})
 
     messages = state.fill_schedule_loop_messages
 
@@ -553,6 +563,21 @@ Important Rules:
             ),
         ]
     )
+    writer(
+        {
+            "short": f"Added {len(response.actions)} schedule items",
+            "long": {
+                "title": f"Added {len(response.actions)} schedule items",
+                "description": convert_schedule_items_to_string(
+                    [action.schedule_item for action in response.actions],
+                    include_ids=False,
+                    include_description=False,
+                    include_suggestion=False,
+                    include_heading=False,
+                ),
+            },
+        }
+    )
 
     return Command(
         goto=n(fill_schedule_reflection),
@@ -565,6 +590,7 @@ Important Rules:
 
 def fill_schedule_reflection(state: FillScheduleLoopState, writer: StreamWriter):
     print("\n>>> NODE: fill_schedule_reflection")
+    writer({"short": "Reflecting on added schedule items", "long": None})
 
     criteria_instruction = (
         "Think out loud if provided schedule items meet the following criteria:"
@@ -612,6 +638,30 @@ Important!! This field is required. Don't forget to return an empty list if all 
         | reasoning_model.with_structured_output(FillScheduleReflectionResponse)
     ).invoke({})
 
+    if len(response.actions) > 0:
+        writer(
+            {
+                "short": f"Found {len(response.actions)} improvements",
+                "long": {
+                    "title": f"Found {len(response.actions)} improvements in added schedule items",
+                    "description": convert_schedule_items_to_string(
+                        response.actions,
+                        include_ids=False,
+                        include_description=False,
+                        include_suggestion=False,
+                        include_heading=False,
+                    ),
+                },
+            }
+        )
+    else:
+        writer(
+            {
+                "short": "Added items all meet the criteria",
+                "long": None
+            }
+        )
+
     messages_to_remove = [
         RemoveMessage(msg.id) for msg in state.fill_schedule_loop_messages[-2:]
     ]  # We need to remove these messages because we are going to summarize them in the prompt of the next loop
@@ -627,8 +677,9 @@ Important!! This field is required. Don't forget to return an empty list if all 
     )
 
 
-def fill_terminal_transportation_schedule(state: OverallState):
+def fill_terminal_transportation_schedule(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: fill_terminal_transportation_schedule")
+    writer({"short": "Adding terminal <-> accommodation schedules", "long": None})
 
     prompt_for_perplexity = """
 You are an AI tour planner, and now finding transportation methods between the terminals and the accommodation.
@@ -689,8 +740,9 @@ Using the information above, create two TRANSPORT type schedule items: one for a
     }
 
 
-def validate_full_schedule_loop(state: OverallState):
+def validate_full_schedule_loop(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: validate_full_schedule_loop")
+    writer({"short": "Reviewing full schedule", "long": None})
 
     validate_filled_schedule_criteria_list = [
         """
@@ -759,7 +811,12 @@ You are an AI tour planner, and just finished filling the schedule. Now you need
 Here is the full schedule that you just filled:
 {full_schedule_string}
     """.format(
-        full_schedule_string=convert_schedule_items_to_string(state.schedule_list, include_ids=True, include_description=True, include_suggestion=True),
+        full_schedule_string=convert_schedule_items_to_string(
+            state.schedule_list,
+            include_ids=True,
+            include_description=True,
+            include_suggestion=True,
+        ),
     ).strip()
 
     #! Using O3-mini
@@ -773,6 +830,22 @@ Here is the full schedule that you just filled:
             goto=END,
         )
     else:
+        writer(
+            {
+                "short": f"Found {len(response.actions)} improvements",
+                "long": {
+                    "title": f"Found {len(response.actions)} improvements in final schedule",
+                    "description": convert_schedule_items_to_string(
+                        response.actions,
+                        include_ids=False,
+                        include_description=False,
+                        include_suggestion=False,
+                        include_heading=False,
+                    ),
+                },
+            }
+        )
+
         return Command(
             goto=n(validate_full_schedule_loop),
             update={

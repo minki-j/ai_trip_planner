@@ -82,7 +82,7 @@ except Exception as e:
 REDIS_KEY_PREFIX = "tour_assistant:ids_in_progress:"
 
 # Time to live for Redis keys
-REDIS_TTL = timedelta(minutes=20)
+REDIS_TTL = timedelta(minutes=10)
 
 
 @app.get("/health")
@@ -236,6 +236,9 @@ async def reset_state(user: dict = Depends(get_current_user_http)):
             # "updated_trip_information_list": ["RESET_LIST"],
         },
     )
+
+    # reset Redis key
+    await redis_client.delete(f"{REDIS_KEY_PREFIX}{user['id']}")
 
     return JSONResponse(
         status_code=200,

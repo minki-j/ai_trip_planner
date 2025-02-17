@@ -328,7 +328,7 @@ export default function ScheduleDisplay({
           transition={{ duration: 0.3 }}
         >
           <div>
-            {!isGenerating ? (
+            {!isGenerating && (
               <div className="flex gap-4">
                 <Button
                   onClick={() => setIsEditMode((prev) => !prev)}
@@ -355,10 +355,6 @@ export default function ScheduleDisplay({
                   Regenerate
                 </Button>
               </div>
-            ) : (
-              <p className="pl-4 text-xs animate-pulse">
-                Generating schedule...
-              </p>
             )}
           </div>
           <div className="flex items-center justify-end space-x-4">

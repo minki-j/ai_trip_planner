@@ -20,6 +20,7 @@ def convert_schedule_items_to_string(
     include_ids: bool,
     include_description: bool,
     include_suggestion: bool,
+    include_heading: bool = True,
 ) -> str:
 
     if not schedule_items:
