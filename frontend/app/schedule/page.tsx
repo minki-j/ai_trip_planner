@@ -45,19 +45,16 @@ export default function SchedulePage() {
   const [connectionClosed, setConnectionClosed] = useState(false);
   const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
 
-
-  // Delayed update for short reasoning messages
-  // Load reasoningSteps from localStorage on component mount
   useEffect(() => {
-    const savedSteps = localStorage.getItem('reasoningSteps');
+    const savedSteps = localStorage.getItem("reasoningSteps");
     if (savedSteps) {
       setReasoningSteps(JSON.parse(savedSteps));
-      // Clear the stored steps after loading them
-      localStorage.removeItem('reasoningSteps');
     }
   }, []);
 
   // TODO: Not working after first few messages
+  // Delayed update for short reasoning messages
+  // Load reasoningSteps from localStorage on component mount
   // useEffect(() => {
   //   const incrementDisplay = () => {
   //     if (currentDisplayIndex < reasoningStepShortMSG.length - 1) {
@@ -99,6 +96,14 @@ export default function SchedulePage() {
       setIsLoading(false);
     }
   }, [reasoningSteps, schedules]);
+
+  useEffect(() => {
+    if (!connectionClosed || reasoningStepShortMSG.length === 0) {
+      return;
+    }
+    // Save reasoningSteps to localStorage when generating is finished
+    localStorage.setItem("reasoningSteps", JSON.stringify(reasoningSteps));
+  }, [reasoningSteps, connectionClosed, reasoningStepShortMSG]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -207,8 +212,6 @@ export default function SchedulePage() {
         }
 
         if (response.data_type == "reasoning_steps") {
-          console.log("WebSocket response: ", response);
-
           if (response.short) {
             setReasoningStepShortMSG((prev) => [...prev, response.short]);
             if (!response.long) {
@@ -249,12 +252,9 @@ export default function SchedulePage() {
 
       websocket.onclose = async () => {
         await revalidateSchedule(session?.user?.id ?? "");
+        setConnectionClosed(true);
         setIsLoading(false);
         setIsGenerating(false);
-        
-        // Save reasoning steps to localStorage before reload
-        localStorage.setItem('reasoningSteps', JSON.stringify(reasoningSteps));
-        window.location.reload();
       };
     } catch (error: any) {
       if (websocket.readyState !== WebSocket.CLOSED) {
@@ -347,20 +347,26 @@ export default function SchedulePage() {
       )}
 
       {/* Short Reasoning Step */}
-      {(reasoningSteps.length > 0 || reasoningStepShortMSG.length > 0) && (
-        <button
-          onClick={() => setShowReasoningSteps(!showReasoningSteps)}
-          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-100 sticky bottom-0 rounded-b-xl animate-pulse "
-          aria-label={
-            showReasoningSteps ? "Hide reasoning steps" : "Show reasoning steps"
-          }
-        >
-          <div className="flex items-center gap-2 text-sm">
-            {/* <span>{reasoningStepShortMSG[currentDisplayIndex]}</span> */}
-            <span>{reasoningStepShortMSG[reasoningStepShortMSG.length - 1]}</span>
-          </div>
-        </button>
-      )}
+      {(reasoningSteps.length > 0 || reasoningStepShortMSG.length > 0) &&
+        schedules.length > 0 && (
+          <button
+            onClick={() => setShowReasoningSteps(!showReasoningSteps)}
+            className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-100 sticky bottom-0 rounded-b-xl animate-pulse "
+            aria-label={
+              showReasoningSteps
+                ? "Hide reasoning steps"
+                : "Show reasoning steps"
+            }
+          >
+            <div className="flex items-center gap-2 text-sm">
+              {/* <span>{reasoningStepShortMSG[currentDisplayIndex]}</span> */}
+              <span>
+                {reasoningStepShortMSG[reasoningStepShortMSG.length - 1] ||
+                  "Click to see reasoning steps"}
+              </span>
+            </div>
+          </button>
+        )}
 
       {/* Main content */}
       {schedules.length > 0 ? (

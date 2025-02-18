@@ -40,7 +40,6 @@ from app.utils.utils import (
 )
 
 
-MAX_NUM_OF_LOOPS = 100
 FREE_HOURS_PER_QUERY = 6
 MAX_INTERNET_SEARCH = 10
 
@@ -352,7 +351,6 @@ def generate_search_query_loop(
     if (
         response.is_current_queries_good_enough
         or len(state.search_queries) >= state.trip_free_hours // FREE_HOURS_PER_QUERY
-        or state.loop_iteration >= MAX_NUM_OF_LOOPS
     ):
         # If the current queries are good enough or the maximum number of queries has been reached, then terminate the loop and start the internet search nodes in parallel
         writer(
@@ -495,7 +493,7 @@ def init_fill_schedule_loop(state: OverallState, writer: StreamWriter):
 
     system_prompt = SystemMessage(
         """
-<warning>DO NOT RETURN AN EMPTY RESPONSE!!</warning>
+<warning>DO NOT RETURN AN EMPTY RESPONSE!! YOU HAVE ENOUGH OUTPUT TOKENS</warning>
 
 As an AI tour planner, you help arrange travel schedules for users' trips based on the information you have collected from the internet.
 
@@ -516,7 +514,7 @@ Here are information that you have collected on the internet:
 ---
 
 
-<warning>DO NOT RETURN AN EMPTY RESPONSE!!</warning>
+<warning>DO NOT RETURN AN EMPTY RESPONSE!! YOU HAVE ENOUGH OUTPUT TOKENS</warning>
     """.format(
             **format_data
         ).strip()
@@ -564,7 +562,7 @@ def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
     #! Make sure to remove this after the model gets better.
     human_message = HumanMessage(
         f"""
-<warning>DO NOT RETURN AN EMPTY RESPONSE!!</warning>
+<warning>DO NOT RETURN AN EMPTY RESPONSE!! YOU HAVE ENOUGH OUTPUT TOKENS</warning>
 
 Fill the schedule with the best schedule items. Don't need to fill all at once because you'll be asked again until all slots are filled.
 
@@ -578,7 +576,7 @@ Important Rules:
 {"\n".join([f"- {c}" for c in FILL_SCHEDULE_CRITERIA_LIST])}
 
 
-<warning>DO NOT RETURN AN EMPTY RESPONSE!!</warning>
+<warning>DO NOT RETURN AN EMPTY RESPONSE!! YOU HAVE ENOUGH OUTPUT TOKENS</warning>
 """.strip()
     )
 
