@@ -233,7 +233,6 @@ async def reset_state(user: dict = Depends(get_current_user_http)):
             "stage": Stage.FIRST_GENERATION,
             "internet_search_result_list": ["RESET_LIST"],
             "schedule_list": ["RESET_LIST"],
-            # "updated_trip_information_list": ["RESET_LIST"],
         },
     )
 

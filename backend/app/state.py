@@ -1,9 +1,8 @@
-from langgraph.graph import add_messages
-from pydantic import BaseModel, Field
-from typing import Annotated, Any
-from langchain_core.messages import AnyMessage
-from app.models import Stage
 from enum import Enum
+from typing import Annotated
+from pydantic import BaseModel, Field
+
+from app.models import Stage
 
 # ===========================================
 #                VARIABLE SCHEMA
@@ -13,11 +12,11 @@ class ScheduleItemType(str, Enum):
     TERMINAL = "terminal"
     TRANSPORT = "transport"
     WALK = "walk"
-    EVENT = "event"
-    MUSEUM_GALLERY = "museum_gallery"
-    STREETS = "streets"
-    HISTORICAL_SITE = "historical_site"
     MEAL = "meal"
+    EVENT = "event"
+    STREETS = "streets"
+    MUSEUM_GALLERY = "museum_gallery"
+    HISTORICAL_SITE = "historical_site"
     OTHER = "other"
     REMOVE = "remove"
 
@@ -48,7 +47,7 @@ def extend_list(original: list, new: list):
     return original
 
 
-def insert_schedule(original: list[ScheduleItem], new: list[ScheduleItem]):
+def insert_schedules(original: list[ScheduleItem], new: list[ScheduleItem]):
     if len(new) == 1 and new[0] == "RESET_LIST":
         return []
     if len(new) > 0:
@@ -62,7 +61,7 @@ def insert_schedule(original: list[ScheduleItem], new: list[ScheduleItem]):
                     else:
                         original[i] = new_item
                     break
-            if not found and new_item.activity_type != ScheduleItemType.REMOVE:
+            if not found:
                 original.append(new_item)
     return original
 
@@ -88,14 +87,15 @@ class InputState(BaseModel):
     trip_departure_time: str = Field(default=None, description="HH:MM")
     trip_departure_terminal: str = Field(default=None)
 
-    trip_start_of_day_at: str = Field(default=None, description="HH:MM")
-    trip_end_of_day_at: str = Field(default=None, description="HH:MM")
-
     trip_location: str = Field(default=None)
     trip_accommodation_location: str = Field(default=None)
 
     trip_budget: str = Field(default=None)
     trip_theme: str = Field(default=None)
+
+    trip_start_of_day_at: str = Field(default=None, description="HH:MM")
+    trip_end_of_day_at: str = Field(default=None, description="HH:MM")
+
     trip_fixed_schedules: list[ScheduleItem] = Field(default_factory=list)
 
     trip_free_hours: int = Field(default=None)
@@ -106,8 +106,6 @@ class OverallState(InputState):
         default_factory=list
     )
 
-    schedule_list: Annotated[list[ScheduleItem], insert_schedule] = Field(
+    schedule_list: Annotated[list[ScheduleItem], insert_schedules] = Field(
         default_factory=list
     )
-
-    updated_trip_information_list: Annotated[list[str], extend_list] = Field(default_factory=list)

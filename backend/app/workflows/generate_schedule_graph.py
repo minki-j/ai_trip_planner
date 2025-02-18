@@ -1,21 +1,15 @@
 import json
-import datetime
-from typing import TypedDict
 from varname import nameof as n
 from enum import Enum
 from pydantic import BaseModel, Field, create_model
-from typing import Annotated, Any
+from typing import Annotated
 
 from langgraph.graph import START, END, StateGraph, add_messages
 from langgraph.types import StreamWriter, Command, Send
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import (
-    RunnablePassthrough,
-    RunnableLambda,
-    RunnableParallel,
-)
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.messages import (
     AnyMessage,
     SystemMessage,
@@ -32,64 +26,41 @@ from app.state import (
     ScheduleItemTime,
     extend_list,
 )
-from app.models import Role
 from app.llms import (
     chat_model,
     perplexity_chat_model,
     reasoning_model,
     small_model_for_summarization,
 )
-from app.utils.utils import convert_schedule_items_to_string, calculate_empty_slots
+from app.utils.utils import (
+    convert_schedule_items_to_string,
+    calculate_empty_slots,
+    calculate_trip_free_hours,
+)
 
 
-MAX_NUM_OF_SCHEDULES = 100
 MAX_NUM_OF_LOOPS = 100
-HOURS_PER_QUERY = 6
+FREE_HOURS_PER_QUERY = 6
 MAX_INTERNET_SEARCH = 10
 
 
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: calculate_how_many_schedules")
-    writer({"short": "Calculating free hours of your trip", "long": None})
 
-    class FreeHourResponse(BaseModel):
-        think_out_loud: str = Field(description="Think out loud your calculation")
-        free_hours: int
-
-    response: FreeHourResponse = (
-        ChatPromptTemplate.from_template(
-            """
-Calculate how many free hours I have when my trip schedule is like this. 
-
-I'll be arriving at {trip_arrival_date} at {trip_arrival_time}. And I'm going to leave at {trip_departure_date} at {trip_departure_time}. I'm going to start my day at {trip_start_of_day_at}. And I'm going to end my day at {trip_end_of_day_at}.
-
-I have some fixed schedules which you need to exclude from the calculation: {trip_fixed_schedules}
-
-Before returning the result, think out loud on how you calculate the number of free hours.
-        """.strip()
-        )
-        | chat_model.with_structured_output(FreeHourResponse)
-    ).invoke(
-        {
-            "trip_arrival_date": state.trip_arrival_date,
-            "trip_arrival_time": state.trip_arrival_time,
-            "trip_departure_date": state.trip_departure_date,
-            "trip_departure_time": state.trip_departure_time,
-            "trip_start_of_day_at": state.trip_start_of_day_at,
-            "trip_end_of_day_at": state.trip_end_of_day_at,
-            "trip_fixed_schedules": state.trip_fixed_schedules,
-        }
+    free_hours: int = calculate_trip_free_hours(
+        state.trip_arrival_date,
+        state.trip_arrival_time,
+        state.trip_departure_date,
+        state.trip_departure_time,
+        state.trip_start_of_day_at,
+        state.trip_end_of_day_at,
+        state.trip_fixed_schedules,
     )
 
-    writer(
-        {
-            "short": f"Calculated free hours: {response.free_hours}",
-            "long": None,
-        }
-    )
+    writer({"short": f"Calculated free hours: {free_hours}", "long": None})
 
     return {
-        n(state.trip_free_hours): response.free_hours,
+        n(state.trip_free_hours): free_hours,
     }
 
 
@@ -209,7 +180,7 @@ Important notes:
     )
 
     human_message = HumanMessage(
-        f"""Read my trip information carefully, and generate upto {state.trip_free_hours // HOURS_PER_QUERY} queries to look up information on the internet. Make sure each query don't overlap with the other ones.""".strip()
+        f"""Read my trip information carefully, and generate upto {state.trip_free_hours // FREE_HOURS_PER_QUERY} queries to look up information on the internet. Make sure each query don't overlap with the other ones.""".strip()
     )
 
     class Queries(BaseModel):
@@ -303,7 +274,7 @@ def generate_search_query_loop(
 
     if (
         response.is_current_queries_good_enough
-        or len(state.search_queries) >= state.trip_free_hours // HOURS_PER_QUERY
+        or len(state.search_queries) >= state.trip_free_hours // FREE_HOURS_PER_QUERY
         or state.loop_iteration >= MAX_NUM_OF_LOOPS
     ):
         # If the current queries are good enough or the maximum number of queries has been reached, then terminate the loop and start the internet search nodes in parallel
@@ -421,7 +392,7 @@ Important Rules
             "short": None,
             "long": {
                 "title": f"Internet search result",
-                "description": f"Query: {state.query}\nSummarized result: {summarized_response}",
+                "description": f"Query: {state.query}\nSummarized result: {summarized_response.content}",
             },
         }
     )
@@ -645,7 +616,7 @@ Important!! This field is required. Don't forget to return an empty list if all 
                 "long": {
                     "title": f"Found {len(response.actions)} improvements in added schedule items",
                     "description": convert_schedule_items_to_string(
-                        response.actions,
+                        [action.schedule_item for action in response.actions],
                         include_ids=False,
                         include_description=False,
                         include_suggestion=False,
@@ -655,12 +626,7 @@ Important!! This field is required. Don't forget to return an empty list if all 
             }
         )
     else:
-        writer(
-            {
-                "short": "Added items all meet the criteria",
-                "long": None
-            }
-        )
+        writer({"short": "Added items all meet the criteria", "long": None})
 
     messages_to_remove = [
         RemoveMessage(msg.id) for msg in state.fill_schedule_loop_messages[-2:]
@@ -836,7 +802,7 @@ Here is the full schedule that you just filled:
                 "long": {
                     "title": f"Found {len(response.actions)} improvements in final schedule",
                     "description": convert_schedule_items_to_string(
-                        response.actions,
+                        [action.schedule_item for action in response.actions],
                         include_ids=False,
                         include_description=False,
                         include_suggestion=False,
