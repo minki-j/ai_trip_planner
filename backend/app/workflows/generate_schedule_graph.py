@@ -495,7 +495,9 @@ def init_fill_schedule_loop(state: OverallState, writer: StreamWriter):
 
     system_prompt = SystemMessage(
         """
-As an AI tour planner, you help arrange travel schedules for users' trips. 
+<warning>DO NOT RETURN AN EMPTY RESPONSE!!</warning>
+
+As an AI tour planner, you help arrange travel schedules for users' trips based on the information you have collected from the internet.
 
 The user will be visiting {trip_location}, staying at {trip_accommodation_location}, from {trip_arrival_date} {trip_arrival_time} to {trip_departure_date} {trip_departure_time}. They prefer a {trip_budget} trip with a focus on {trip_theme} and are particularly interested in {user_interests}. Their day starts at {trip_start_of_day_at} and ends at {trip_end_of_day_at}.
 
@@ -509,6 +511,12 @@ Extra information about the user:
 Here are information that you have collected on the internet:
 
 {internet_search_results_string}
+
+
+---
+
+
+<warning>DO NOT RETURN AN EMPTY RESPONSE!!</warning>
     """.format(
             **format_data
         ).strip()
@@ -552,7 +560,7 @@ def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
 
     messages = state.fill_schedule_loop_messages
 
-    #! Added an ad hoc warning message since Claude sonnet 3.5 keeps returning an empty response half of the time. 
+    #! Added an ad hoc warning message since Claude sonnet 3.5 keeps returning an empty response half of the time.
     #! Make sure to remove this after the model gets better.
     human_message = HumanMessage(
         f"""
