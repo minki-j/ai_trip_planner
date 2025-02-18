@@ -3,7 +3,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 # ===========================================
-#                VARIABLE SCHEMA
+#                Data Models
 # ===========================================
 class Stage(str, Enum):
     FIRST_GENERATION = "first_generation"

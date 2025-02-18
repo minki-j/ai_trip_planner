@@ -57,41 +57,42 @@ export default function SchedulePage() {
     }
   }, []);
 
-  useEffect(() => {
-    const incrementDisplay = () => {
-      if (currentDisplayIndex < reasoningStepShortMSG.length - 1) {
-        setCurrentDisplayIndex((prev) => prev + 1);
-        setDelaySeconds((delaySeconds) => delaySeconds - DELAY_TIME);
-      } else {
-        setDelaySeconds(0);
-      }
-    };
-    if (delaySeconds === 0) {
-      if (currentDisplayIndex != 0) {
-        setCurrentDisplayIndex((prev) => prev + 1);
-      }
-    }
-    setDelaySeconds((delaySeconds) => delaySeconds + DELAY_TIME);
-    setTimeout(incrementDisplay, delaySeconds + DELAY_TIME);
-  }, [reasoningStepShortMSG]);
+  // TODO: Not working after first few messages
+  // useEffect(() => {
+  //   const incrementDisplay = () => {
+  //     if (currentDisplayIndex < reasoningStepShortMSG.length - 1) {
+  //       setCurrentDisplayIndex((prev) => prev + 1);
+  //       setDelaySeconds((delaySeconds) => delaySeconds - DELAY_TIME);
+  //     } else {
+  //       setDelaySeconds(0);
+  //     }
+  //   };
+  //   if (delaySeconds === 0) {
+  //     if (currentDisplayIndex != 0) {
+  //       setCurrentDisplayIndex((prev) => prev + 1);
+  //     }
+  //   }
+  //   setDelaySeconds((delaySeconds) => delaySeconds + DELAY_TIME);
+  //   setTimeout(incrementDisplay, delaySeconds + DELAY_TIME);
+  // }, [reasoningStepShortMSG]);
 
-  useEffect(() => {
-    if (connectionClosed && timeLeft > 0) {
-      const timer = setInterval(() => {
-        setTimeLeft((prevTime) => {
-          if (prevTime <= 1) {
-            clearInterval(timer);
-            setConnectionClosed(false);
-            window.location.reload();
-            return 0;
-          }
-          return prevTime - 1;
-        });
-      }, 1000);
+  // useEffect(() => {
+  //   if (connectionClosed && timeLeft > 0) {
+  //     const timer = setInterval(() => {
+  //       setTimeLeft((prevTime) => {
+  //         if (prevTime <= 1) {
+  //           clearInterval(timer);
+  //           setConnectionClosed(false);
+  //           window.location.reload();
+  //           return 0;
+  //         }
+  //         return prevTime - 1;
+  //       });
+  //     }, 1000);
 
-      return () => clearInterval(timer);
-    }
-  }, [connectionClosed, timeLeft]);
+  //     return () => clearInterval(timer);
+  //   }
+  // }, [connectionClosed, timeLeft]);
 
   useEffect(() => {
     if (schedules.length > 0 || reasoningSteps.length > 0) {
@@ -208,15 +209,18 @@ export default function SchedulePage() {
         if (response.data_type == "reasoning_steps") {
           console.log("WebSocket response: ", response);
 
+          if (response.short) {
+            setReasoningStepShortMSG((prev) => [...prev, response.short]);
+            if (!response.long) {
+              // only add short to reasoningSteps(long) if long is not given
+              setReasoningSteps((prev) => [
+                ...prev,
+                { title: "", description: response.short },
+              ]);
+            }
+          }
           if (response.long) {
             setReasoningSteps((prevSteps) => [...prevSteps, response.long]);
-          }
-          if (response.short) {
-            setReasoningSteps((prev) => [
-              ...prev,
-              { title: "", description: response.short },
-            ]);
-            setReasoningStepShortMSG((prev) => [...prev, response.short]);
           }
         } else if (response.data_type == "schedule") {
           delete response.data_type;
@@ -346,13 +350,14 @@ export default function SchedulePage() {
       {(reasoningSteps.length > 0 || reasoningStepShortMSG.length > 0) && (
         <button
           onClick={() => setShowReasoningSteps(!showReasoningSteps)}
-          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-100 sticky bottom-0 animate-pulse"
+          className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-100 sticky bottom-0 rounded-b-xl animate-pulse "
           aria-label={
             showReasoningSteps ? "Hide reasoning steps" : "Show reasoning steps"
           }
         >
           <div className="flex items-center gap-2 text-sm">
-            <span>{reasoningStepShortMSG[currentDisplayIndex]}</span>
+            {/* <span>{reasoningStepShortMSG[currentDisplayIndex]}</span> */}
+            <span>{reasoningStepShortMSG[-1]}</span>
           </div>
         </button>
       )}

@@ -27,7 +27,8 @@ from app.state import (
     extend_list,
 )
 from app.llms import (
-    chat_model,
+    chat_model_anthropic_first,
+    chat_model_openai_first,
     perplexity_chat_model,
     reasoning_model,
     small_model_for_summarization,
@@ -62,6 +63,22 @@ def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
     return {
         n(state.trip_free_hours): free_hours,
     }
+
+
+def add_fixed_schedules(state: OverallState, writer: StreamWriter):
+    if not state.trip_fixed_schedules:
+        print("\n>>> SKIP: add_fixed_schedules (No fixed schedules provided)")
+        return {}
+    print("\n>>> NODE: add_fixed_schedules")
+    writer({"short": "Adding fixed schedules", "long": None})
+
+    # check all fixed schedules are type of ScheduleItem
+    if not all(isinstance(s, ScheduleItem) for s in state.trip_fixed_schedules):
+        raise ValueError(
+            "Invalid fixed schedules provided. They must be a list of ScheduleItem."
+        )
+
+    return {n(state.schedule_list): state.trip_fixed_schedules}
 
 
 def add_terminal_schedules(state: OverallState, writer: StreamWriter):
@@ -151,7 +168,7 @@ Using the information above, create two TRANSPORT type schedule items: one for a
         perplexity_chat_model
         | StrOutputParser()
         | RunnableLambda(lambda x: x + "\n\n---\n\n" + prompt_for_chat_model)
-        | chat_model.with_structured_output(FillScheduleResponse)
+        | chat_model_anthropic_first.with_structured_output(FillScheduleResponse)
     ).invoke(prompt_for_perplexity)
 
     # Adjust ids considering existing schedule items
@@ -162,22 +179,6 @@ Using the information above, create two TRANSPORT type schedule items: one for a
     return {
         n(state.schedule_list): [action.schedule_item for action in response.actions],
     }
-
-
-def add_fixed_schedules(state: OverallState, writer: StreamWriter):
-    if not state.trip_fixed_schedules:
-        print("\n>>> SKIP: add_fixed_schedules (No fixed schedules provided)")
-        return {}
-    print("\n>>> NODE: add_fixed_schedules")
-    writer({"short": "Adding fixed schedules", "long": None})
-
-    # check all fixed schedules are type of ScheduleItem
-    if not all(isinstance(s, ScheduleItem) for s in state.trip_fixed_schedules):
-        raise ValueError(
-            "Invalid fixed schedules provided. They must be a list of ScheduleItem."
-        )
-
-    return {n(state.schedule_list): state.trip_fixed_schedules}
 
 
 async def init_generate_search_query_loop(state: OverallState, writer: StreamWriter):
@@ -251,7 +252,7 @@ Important notes:
 
     response: Queries = (
         ChatPromptTemplate.from_messages([system_prompt, human_message])
-        | chat_model.with_structured_output(Queries)
+        | chat_model_anthropic_first.with_structured_output(Queries)
     ).invoke({})
 
     writer(
@@ -332,7 +333,7 @@ def generate_search_query_loop(
                 human_message,
             ]
         )
-        | chat_model.with_structured_output(GenerateSearchQueryLoopResponse)
+        | chat_model_anthropic_first.with_structured_output(GenerateSearchQueryLoopResponse)
     ).invoke({})
 
     if (
@@ -551,8 +552,12 @@ def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
 
     messages = state.fill_schedule_loop_messages
 
+    #! Added an ad hoc warning message since Claude sonnet 3.5 keeps returning an empty response half of the time. 
+    #! Make sure to remove this after the model gets better.
     human_message = HumanMessage(
         f"""
+<warning>DO NOT RETURN AN EMPTY RESPONSE!!</warning>
+
 Fill the schedule with the best schedule items. Don't need to fill all at once because you'll be asked again until all slots are filled.
 
 Current schedule:
@@ -563,14 +568,17 @@ Empty slots:
 
 Important Rules:
 {"\n".join([f"- {c}" for c in FILL_SCHEDULE_CRITERIA_LIST])}
-        """.strip()
+
+
+<warning>DO NOT RETURN AN EMPTY RESPONSE!!</warning>
+""".strip()
     )
 
     messages.append(human_message)
 
     response: FillScheduleResponse = (
         ChatPromptTemplate.from_messages(messages)
-        | chat_model.with_structured_output(FillScheduleResponse)
+        | chat_model_anthropic_first.with_structured_output(FillScheduleResponse)
     ).invoke({})
 
     # Note: This creates a new list but the items inside are references to the original objects
