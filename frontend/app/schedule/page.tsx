@@ -45,11 +45,6 @@ export default function SchedulePage() {
   const [connectionClosed, setConnectionClosed] = useState(false);
   const [timeLeft, setTimeLeft] = useState(5 * 60); // 5 minutes in seconds
 
-  useEffect(() => {
-    if (lastStepRef.current) {
-      lastStepRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [reasoningSteps]);
 
   // Delayed update for short reasoning messages
   useEffect(() => {

@@ -455,7 +455,7 @@ Important Rules
             "short": None,
             "long": {
                 "title": f"Internet search result",
-                "description": f"Query: {state.query}\nSummarized result: {summarized_response.content}",
+                "description": f"**Query**: {state.query}\n\n**Summarized result**: {summarized_response.content}",
             },
         }
     )
@@ -690,7 +690,7 @@ Important!! This field is required. Don't forget to return an empty list if all 
             }
         )
     else:
-        writer({"short": "Added items all meet the criteria", "long": None})
+        writer({"short": "All added schedule items have been verified", "long": None})
 
     messages_to_remove = [
         RemoveMessage(msg.id) for msg in state.fill_schedule_loop_messages[-2:]
