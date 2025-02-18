@@ -168,8 +168,8 @@ export default function ScheduleDisplay({
         icon: Landmark,
       },
       [ScheduleItemType.MEAL]: {
-        bg: "bg-yellow-50",
-        border: "border-yellow-200",
+        bg: "bg-red-50",
+        border: "border-red-200",
         icon: Utensils,
       },
       [ScheduleItemType.OTHER]: {
