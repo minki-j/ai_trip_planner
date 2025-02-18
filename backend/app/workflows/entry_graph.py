@@ -33,8 +33,9 @@ def stage_router(state: OverallState):
         return END
     elif state.current_stage == Stage.FIRST_GENERATION:
         return n(generate_schedule)
-    elif state.current_stage == Stage.MODIFY:
-        return n(generate_schedule) #! Not implemented yet
+    # TODO: Implement modify stage
+    # elif state.current_stage == Stage.MODIFY:
+    #     return n(generate_schedule) 
     else:
         raise ValueError(f"Invalid stage: {state.current_stage}")
 

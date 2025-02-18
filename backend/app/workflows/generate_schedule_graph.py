@@ -101,6 +101,69 @@ def add_terminal_schedules(state: OverallState, writer: StreamWriter):
     }
 
 
+def fill_terminal_transportation_schedule(state: OverallState, writer: StreamWriter):
+    print("\n>>> NODE: fill_terminal_transportation_schedule")
+    writer({"short": "Adding terminal <-> accommodation schedules", "long": None})
+
+    prompt_for_perplexity = """
+You are an AI tour planner, and now finding transportation methods between the terminals and the accommodation.
+
+Accommodation: {trip_accommodation_location} ({trip_location}).
+Arrival: {trip_arrival_date} {trip_arrival_time}, {trip_arrival_terminal}.
+Departure: {trip_departure_date} {trip_departure_time}, {trip_departure_terminal}.
+
+You need to find the shortest path between the terminals and the accommodation.
+Consider various methods such as public transportation, taxis/Uber, car rental, and walking.
+Assume that the user has big luggage and needs to carry it all the way.
+Pick the best 1-2 options and return them in detail with the following format:
+
+1.  From the terminal to the accommodation:
+Option #:
+- Transportation type: ...
+- Duration: ...
+- Price: ...
+...
+
+2. From the accommodation to the terminal:
+Option #:
+- Transportation type: ...
+- Duration: ...
+- Price: ...
+...
+
+""".format(
+        **state.model_dump()
+    ).strip()
+
+    prompt_for_chat_model = """
+Using the information above, create two TRANSPORT type schedule items: one for arrival and one for departure. 
+
+- Make sure add details in description and suggestion fields. For location field, use 'A to B' format. A and B should be address of the place name. 
+- Title should be 'Go to accommodation' and 'Go to terminal'. 
+- For time field, use the following information: Arrival: {trip_arrival_date} {trip_arrival_time}, Departure: {trip_departure_date} {trip_departure_time}. 
+- You should take the travel time into account and fill both start_time and end_time fields. For example, if the travel time is 1 hour, the start_time should be the arrival time, and the end_time should be the arrival time plus 1 hour. For departure, the start_time should be 1 hour before the terminal departure time.
+- If possible include cost in the suggestion field.
+""".format(
+        **state.model_dump()
+    ).strip()
+
+    response: FillScheduleResponse = (
+        perplexity_chat_model
+        | StrOutputParser()
+        | RunnableLambda(lambda x: x + "\n\n---\n\n" + prompt_for_chat_model)
+        | chat_model.with_structured_output(FillScheduleResponse)
+    ).invoke(prompt_for_perplexity)
+
+    # Adjust ids considering existing schedule items
+    starting_id = len(state.schedule_list) + 1
+    for i in range(len(response.actions)):
+        response.actions[i].schedule_item.id = starting_id + i
+
+    return {
+        n(state.schedule_list): [action.schedule_item for action in response.actions],
+    }
+
+
 def add_fixed_schedules(state: OverallState, writer: StreamWriter):
     if not state.trip_fixed_schedules:
         print("\n>>> SKIP: add_fixed_schedules (No fixed schedules provided)")
@@ -641,69 +704,6 @@ Important!! This field is required. Don't forget to return an empty list if all 
             n(state.fill_schedule_loop_messages): messages_to_remove,
         },
     )
-
-
-def fill_terminal_transportation_schedule(state: OverallState, writer: StreamWriter):
-    print("\n>>> NODE: fill_terminal_transportation_schedule")
-    writer({"short": "Adding terminal <-> accommodation schedules", "long": None})
-
-    prompt_for_perplexity = """
-You are an AI tour planner, and now finding transportation methods between the terminals and the accommodation.
-
-Accommodation: {trip_accommodation_location} ({trip_location}).
-Arrival: {trip_arrival_date} {trip_arrival_time}, {trip_arrival_terminal}.
-Departure: {trip_departure_date} {trip_departure_time}, {trip_departure_terminal}.
-
-You need to find the shortest path between the terminals and the accommodation.
-Consider various methods such as public transportation, taxis/Uber, car rental, and walking.
-Assume that the user has big luggage and needs to carry it all the way.
-Pick the best 1-2 options and return them in detail with the following format:
-
-1.  From the terminal to the accommodation:
-Option #:
-- Transportation type: ...
-- Duration: ...
-- Price: ...
-...
-
-2. From the accommodation to the terminal:
-Option #:
-- Transportation type: ...
-- Duration: ...
-- Price: ...
-...
-
-""".format(
-        **state.model_dump()
-    ).strip()
-
-    prompt_for_chat_model = """
-Using the information above, create two TRANSPORT type schedule items: one for arrival and one for departure. 
-
-- Make sure add details in description and suggestion fields. For location field, use 'A to B' format. A and B should be address of the place name. 
-- Title should be 'Go to accommodation' and 'Go to terminal'. 
-- For time field, use the following information: Arrival: {trip_arrival_date} {trip_arrival_time}, Departure: {trip_departure_date} {trip_departure_time}. 
-- You should take the travel time into account and fill both start_time and end_time fields. For example, if the travel time is 1 hour, the start_time should be the arrival time, and the end_time should be the arrival time plus 1 hour. For departure, the start_time should be 1 hour before the terminal departure time.
-- If possible include cost in the suggestion field.
-""".format(
-        **state.model_dump()
-    ).strip()
-
-    response: FillScheduleResponse = (
-        perplexity_chat_model
-        | StrOutputParser()
-        | RunnableLambda(lambda x: x + "\n\n---\n\n" + prompt_for_chat_model)
-        | chat_model.with_structured_output(FillScheduleResponse)
-    ).invoke(prompt_for_perplexity)
-
-    # Adjust ids considering existing schedule items
-    starting_id = len(state.schedule_list) + 1
-    for i in range(len(response.actions)):
-        response.actions[i].schedule_item.id = starting_id + i
-
-    return {
-        n(state.schedule_list): [action.schedule_item for action in response.actions],
-    }
 
 
 def validate_full_schedule_loop(state: OverallState, writer: StreamWriter):

@@ -1,13 +1,12 @@
 from enum import Enum
 from typing import Annotated
 from pydantic import BaseModel, Field
-
 from app.models import Stage
+
 
 # ===========================================
 #                VARIABLE SCHEMA
 # ===========================================
-
 class ScheduleItemType(str, Enum):
     TERMINAL = "terminal"
     TRANSPORT = "transport"
@@ -20,8 +19,11 @@ class ScheduleItemType(str, Enum):
     OTHER = "other"
     REMOVE = "remove"
 
+
 class ScheduleItemTime(BaseModel):
-    start_time: str = Field(description="Full date-and-time should be included. e.g. 'YYYY-MM-DD HH:MM'")
+    start_time: str = Field(
+        description="Full date-and-time should be included. e.g. 'YYYY-MM-DD HH:MM'"
+    )
     end_time: str | None = Field(
         description="Both full-date-and-time and time-only are allowed. e.g. 'YYYY-MM-DD HH:MM' or 'HH:MM'"
     )
@@ -34,7 +36,9 @@ class ScheduleItem(BaseModel):
     location: str
     title: str
     description: str | None = Field(description="A brief description of the schedule.")
-    suggestion: str | None = Field(description="Detailed suggestions or tips for the schedule.")
+    suggestion: str | None = Field(
+        description="Detailed suggestions or tips for the schedule."
+    )
 
 
 # ===========================================
