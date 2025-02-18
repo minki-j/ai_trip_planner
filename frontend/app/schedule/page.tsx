@@ -47,6 +47,16 @@ export default function SchedulePage() {
 
 
   // Delayed update for short reasoning messages
+  // Load reasoningSteps from localStorage on component mount
+  useEffect(() => {
+    const savedSteps = localStorage.getItem('reasoningSteps');
+    if (savedSteps) {
+      setReasoningSteps(JSON.parse(savedSteps));
+      // Clear the stored steps after loading them
+      localStorage.removeItem('reasoningSteps');
+    }
+  }, []);
+
   useEffect(() => {
     const incrementDisplay = () => {
       if (currentDisplayIndex < reasoningStepShortMSG.length - 1) {
@@ -237,6 +247,9 @@ export default function SchedulePage() {
         await revalidateSchedule(session?.user?.id ?? "");
         setIsLoading(false);
         setIsGenerating(false);
+        
+        // Save reasoning steps to localStorage before reload
+        localStorage.setItem('reasoningSteps', JSON.stringify(reasoningSteps));
         window.location.reload();
       };
     } catch (error: any) {
