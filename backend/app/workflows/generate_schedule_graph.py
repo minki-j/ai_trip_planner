@@ -667,6 +667,7 @@ Important!! This field is required. Don't forget to return an empty list if all 
         ),
     ]  # did not include the system prompt
 
+    # Using O3-mini
     response = (
         ChatPromptTemplate.from_messages(messages)
         | reasoning_model.with_structured_output(FillScheduleReflectionResponse)
@@ -785,7 +786,7 @@ Here is the full schedule that you just filled:
         ),
     ).strip()
 
-    #! Using O3-mini
+    # Using O3-mini
     response = (
         reasoning_model.with_structured_output(ValidateScheduleResponse)
     ).invoke(prompt)

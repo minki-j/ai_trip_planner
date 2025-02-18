@@ -1,4 +1,4 @@
-import { ScheduleItem, ScheduleItemType, ScheduleItemTime } from "./Schedule";
+import { ScheduleItem } from "./Schedule";
 
 export interface User {
   id: string;

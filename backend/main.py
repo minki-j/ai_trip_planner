@@ -6,19 +6,16 @@ from varname import nameof as n
 from fastapi.websockets import WebSocketDisconnect
 from websockets.exceptions import ConnectionClosedError
 
-from fastapi import FastAPI, HTTPException, WebSocket, Request, Depends
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import FastAPI, WebSocket, Request, Depends
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.websockets import WebSocketDisconnect
-from starlette.middleware.base import BaseHTTPMiddleware
-from contextlib import asynccontextmanager
 import redis.asyncio as redis
 from datetime import timedelta
 
 from langgraph.errors import InvalidUpdateError
 
-from app.models import Stage
-from app.state import ScheduleItem
+from app.state import ScheduleItem, Stage
 from app.utils.compile_graph import compile_graph_with_async_checkpointer
 from app.workflows.entry_graph import g as entry_graph
 from app.workflows.generate_schedule_graph import (
@@ -66,7 +63,7 @@ app.add_middleware(
 )
 
 # Initialize Redis client
-redis_url = os.getenv('REDIS_URL')
+redis_url = os.getenv("REDIS_URL")
 if not redis_url:
     logger.warning("REDIS_URL not found in environment variables, using localhost")
     redis_url = "redis://localhost:6379"
@@ -261,11 +258,11 @@ async def generate_schedule_ws(websocket: WebSocket):
         send_date_via_websocket = True
 
         # Add user ID to Redis with TTL
-        await redis_client.setex(f"{REDIS_KEY_PREFIX}{user['id']}", REDIS_TTL, '1')
+        await redis_client.setex(f"{REDIS_KEY_PREFIX}{user['id']}", REDIS_TTL, "1")
         logger.critical(f"User ID {user['id']} is added to Redis")
 
         async for graph_namespace, stream_mode, data in workflow.astream(
-            {"input": ""},
+            {"current_stage": Stage.FIRST_GENERATION},
             stream_mode=["custom", "updates"],
             config={
                 "recursion_limit": int(os.environ.get("RECURSION_LIMIT")),

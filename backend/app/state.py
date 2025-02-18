@@ -1,12 +1,16 @@
 from enum import Enum
 from typing import Annotated
 from pydantic import BaseModel, Field
-from app.models import Stage
-
 
 # ===========================================
 #                VARIABLE SCHEMA
 # ===========================================
+class Stage(str, Enum):
+    FIRST_GENERATION = "first_generation"
+    MODIFY = "modify"
+    END = "end"
+
+
 class ScheduleItemType(str, Enum):
     TERMINAL = "terminal"
     TRANSPORT = "transport"
@@ -74,7 +78,6 @@ def insert_schedules(original: list[ScheduleItem], new: list[ScheduleItem]):
 #                    STATE
 # ===========================================
 class InputState(BaseModel):
-    input: str = Field(default=None)
     current_stage: Stage = Stage.FIRST_GENERATION
 
     user_id: str = Field(default=None)
@@ -102,10 +105,10 @@ class InputState(BaseModel):
 
     trip_fixed_schedules: list[ScheduleItem] = Field(default_factory=list)
 
-    trip_free_hours: int = Field(default=None)
-
 
 class OverallState(InputState):
+    trip_free_hours: int = Field(default=None)
+
     internet_search_result_list: Annotated[list[dict], extend_list] = Field(
         default_factory=list
     )

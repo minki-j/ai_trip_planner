@@ -1,19 +1,16 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import { Toaster } from '@/components/ui/toaster';
-import { ThemeProvider } from '@/components/theme-provider';
-import { Navigation } from '@/components/navigation';
-import { AuthProvider } from '@/components/auth-provider';
-import { Suspense } from 'react';
-import { ThemeColor } from '@/components/theme-color';
+import "./globals.css";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { Toaster } from "@/components/ui/toaster";
+import { Navigation } from "@/components/navigation";
+import { AuthProvider } from "@/components/auth-provider";
+import { Suspense } from "react";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Tour Assistant",
-  description:
-    "An AI tour assistant to plan your trip",
+  description: "An AI tour assistant to plan your trip",
   icons: {
     icon: [
       { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },
@@ -53,37 +50,27 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <AuthProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <ThemeColor />
-            <Suspense
-              fallback={
-                <div className="min-h-screen bg-background animate-pulse">
-                  <div className="h-16 bg-muted" />
-                  <main className="container mx-auto px-4 py-8 space-y-4">
-                    <div className="h-8 w-[200px] bg-muted rounded" />
-                    <div className="h-32 bg-muted rounded" />
-                    <div className="grid gap-4">
-                      <div className="h-20 bg-muted rounded" />
-                      <div className="h-20 bg-muted rounded" />
-                    </div>
-                  </main>
-                </div>
-              }
-            >
-              <div className="bg-background">
-                <Navigation />
-                <main className="container mx-auto sm:px-4">
-                  {children}
+          <Suspense
+            fallback={
+              <div className="min-h-screen bg-background animate-pulse">
+                <div className="h-16 bg-muted" />
+                <main className="container mx-auto px-4 py-8 space-y-4">
+                  <div className="h-8 w-[200px] bg-muted rounded" />
+                  <div className="h-32 bg-muted rounded" />
+                  <div className="grid gap-4">
+                    <div className="h-20 bg-muted rounded" />
+                    <div className="h-20 bg-muted rounded" />
+                  </div>
                 </main>
               </div>
-            </Suspense>
-            <Toaster />
-          </ThemeProvider>
+            }
+          >
+            <div className="bg-background">
+              <Navigation />
+              <main className="container mx-auto sm:px-4">{children}</main>
+            </div>
+          </Suspense>
+          <Toaster />
         </AuthProvider>
       </body>
     </html>

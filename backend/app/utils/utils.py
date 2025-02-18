@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
-from langchain_core.messages import AnyMessage, HumanMessage, AIMessage
-from app.state import ScheduleItem, ScheduleItemType, OverallState
+from langchain_core.messages import AnyMessage, HumanMessage
+from app.state import ScheduleItem, ScheduleItemType
 
 
 def convert_messages_to_string(messages: AnyMessage) -> str:
@@ -28,9 +28,13 @@ def convert_schedule_items_to_string(
 
     schedule_items = sorted(schedule_items, key=lambda x: x.time.start_time)
 
-    result = [
-        f" {"ID | " if include_ids else ""}Time | Type | Title | Location{" | Description" if include_description else ""} {" | Suggestion" if include_suggestion else ""}"
-    ]  # Only include field names at top to save tokens.
+    result = []
+
+    if include_heading:
+        result.append(
+            f" {"ID | " if include_ids else ""}Time | Type | Title | Location{" | Description" if include_description else ""} {" | Suggestion" if include_suggestion else ""}"
+        )  # Only include field names at top to save tokens.
+
     for item in schedule_items:
         content = (
             f"- {item.id} | {item.time.start_time}"
@@ -66,7 +70,7 @@ def convert_schedule_items_to_string(
 def parse_datetime(dt_str):
     formats = [
         "%Y-%m-%d %H:%M",  # Localized Time
-        "%H:%M",  # Time only
+        "%H:%M",
     ]
 
     for fmt in formats:
@@ -226,11 +230,14 @@ def calculate_trip_free_hours(
     trip_end_of_day_at: str,
     trip_fixed_schedules: list[ScheduleItem],
 ) -> int:
-    """Calculate free hours during the trip, accounting for arrival/departure times and fixed schedules.
-    """
+    """Calculate free hours during the trip, accounting for arrival/departure times and fixed schedules."""
     # Parse trip dates and times
-    arrival_dt = datetime.strptime(f"{trip_arrival_date} {trip_arrival_time}", "%Y-%m-%d %H:%M")
-    departure_dt = datetime.strptime(f"{trip_departure_date} {trip_departure_time}", "%Y-%m-%d %H:%M")
+    arrival_dt = datetime.strptime(
+        f"{trip_arrival_date} {trip_arrival_time}", "%Y-%m-%d %H:%M"
+    )
+    departure_dt = datetime.strptime(
+        f"{trip_departure_date} {trip_departure_time}", "%Y-%m-%d %H:%M"
+    )
 
     # Parse daily start/end times
     start_of_day = datetime.strptime(trip_start_of_day_at, "%H:%M").time()
@@ -259,7 +266,9 @@ def calculate_trip_free_hours(
 
         # Deduct fixed schedules for this day
         for schedule in trip_fixed_schedules:
-            schedule_start = datetime.strptime(schedule.time.start_time, "%Y-%m-%d %H:%M")
+            schedule_start = datetime.strptime(
+                schedule.time.start_time, "%Y-%m-%d %H:%M"
+            )
 
             # Handle end time (could be full datetime or just time)
             if schedule.time.end_time:
@@ -267,15 +276,19 @@ def calculate_trip_free_hours(
                     end_time = datetime.strptime(schedule.time.end_time, "%H:%M").time()
                     schedule_end = datetime.combine(schedule_start.date(), end_time)
                 else:  # Format: YYYY-MM-DD HH:MM
-                    schedule_end = datetime.strptime(schedule.time.end_time, "%Y-%m-%d %H:%M")
+                    schedule_end = datetime.strptime(
+                        schedule.time.end_time, "%Y-%m-%d %H:%M"
+                    )
             else:
                 # If no end time, assume 1 hour duration
                 schedule_end = schedule_start + timedelta(hours=1)
 
             # Check if schedule overlaps with current day
-            if (schedule_start.date() == current_date and 
-                schedule_start >= day_start and 
-                schedule_end <= day_end):
+            if (
+                schedule_start.date() == current_date
+                and schedule_start >= day_start
+                and schedule_end <= day_end
+            ):
                 overlap_minutes = (schedule_end - schedule_start).total_seconds() / 60
                 free_minutes -= overlap_minutes
 
@@ -286,4 +299,3 @@ def calculate_trip_free_hours(
         current_date += timedelta(days=1)
 
     return round(total_free_hours, 2)
-

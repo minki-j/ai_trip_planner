@@ -335,7 +335,7 @@ export default function SchedulePage() {
       )}
 
       {/* Short Reasoning Step */}
-      {(reasoningSteps.length > 0 || reasoningStepShortMSG) && (
+      {(reasoningSteps.length > 0 || reasoningStepShortMSG.length > 0) && (
         <button
           onClick={() => setShowReasoningSteps(!showReasoningSteps)}
           className="w-full py-1 flex justify-center items-center text-gray-500 bg-gray-100 sticky bottom-0 animate-pulse"
