@@ -45,6 +45,19 @@ FREE_HOURS_PER_QUERY = 6
 MAX_INTERNET_SEARCH = 10
 
 
+class ScheduleAction(BaseModel):
+    reasoning: str = Field(
+        description="Before generating the schedule item, think out loud your reasoning behind this action."
+    )
+    schedule_item: ScheduleItem = Field(
+        description="The schedule item to be added to the schedule. Set ID to 0."
+    )
+
+
+class FillScheduleResponse(BaseModel):
+    actions: list[ScheduleAction]
+
+
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
     print("\n>>> NODE: calculate_how_many_schedules")
 
@@ -248,7 +261,7 @@ Important notes:
     )
 
     class Queries(BaseModel):
-        queries: list[Query]
+        queries: list[QueryWithRationale]
 
     response: Queries = (
         ChatPromptTemplate.from_messages([system_prompt, human_message])
@@ -282,17 +295,17 @@ Important notes:
     }
 
 
-class Query(BaseModel):
+class QueryWithRationale(BaseModel):
     id: int = Field(default=None)
     rationale: str
-    query: str  #! should have a better name indicating it is a query
+    query: str
 
 
 # For the loop of generating queries and validating them
 # We need an temporary state that stores the message list and the queries
-class GenerateSearchQueryLoopState(OverallState):
+class GenerateSearchQueryLoopState(OverallState):  # Inherit from OverallState
     loop_iteration: int
-    search_queries: list[Query]
+    search_queries: list[QueryWithRationale]
     generate_search_query_loop_messages: Annotated[list[AnyMessage], extend_list]
 
 
@@ -373,7 +386,7 @@ def generate_search_query_loop(
                 else:
                     # Find the highest ID to assign next ID
                     next_id = max([q.id for q in queries], default=0) + 1
-                new_query = Query(
+                new_query = QueryWithRationale(
                     id=next_id,
                     rationale=action.rationale,
                     query=action.new_query_value,
@@ -410,7 +423,7 @@ def generate_search_query_loop(
         )
 
 
-class InternetSearchState(InputState):
+class InternetSearchState(InputState): # Inherit from InputState
     query: str = Field(description="The query to search for.")
 
 
@@ -506,25 +519,6 @@ Here are information that you have collected on the internet:
     }
 
 
-class FillScheduleLoopState(OverallState):
-    fill_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(
-        default_factory=list
-    )
-
-
-class ScheduleAction(BaseModel):
-    reasoning: str = Field(
-        description="Before generating the schedule item, think out loud your reasoning behind this action."
-    )
-    schedule_item: ScheduleItem = Field(
-        description="The schedule item to be added to the schedule. Set ID to 0."
-    )
-
-
-class FillScheduleResponse(BaseModel):
-    actions: list[ScheduleAction]
-
-
 FILL_SCHEDULE_CRITERIA_LIST = [
     """Fill in events in order, starting with the earliest empty time slot.""",
     """Consider travel time between locations, and add the travel as an event using 'transportation' or 'walk' type.""",
@@ -534,6 +528,12 @@ FILL_SCHEDULE_CRITERIA_LIST = [
     """Don't forget to come back to accommodation at the end of the day.""",
     """Make sure to have enough time to arrive to the departure terminal. No big events right before the departure.""",
 ]
+
+
+class FillScheduleLoopState(OverallState): # Inherit from OverallState
+    fill_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(
+        default_factory=list
+    )
 
 
 def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):

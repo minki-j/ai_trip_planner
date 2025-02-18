@@ -357,7 +357,7 @@ export default function SchedulePage() {
         >
           <div className="flex items-center gap-2 text-sm">
             {/* <span>{reasoningStepShortMSG[currentDisplayIndex]}</span> */}
-            <span>{reasoningStepShortMSG[-1]}</span>
+            <span>{reasoningStepShortMSG[reasoningStepShortMSG.length - 1]}</span>
           </div>
         </button>
       )}
