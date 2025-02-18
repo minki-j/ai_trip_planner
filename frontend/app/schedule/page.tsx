@@ -207,6 +207,10 @@ export default function SchedulePage() {
             setReasoningSteps((prevSteps) => [...prevSteps, response.long]);
           }
           if (response.short) {
+            setReasoningSteps((prev) => [
+              ...prev,
+              { title: "", description: response.short },
+            ]);
             setReasoningStepShortMSG((prev) => [...prev, response.short]);
           }
         } else if (response.data_type == "schedule") {
@@ -298,9 +302,11 @@ export default function SchedulePage() {
               className="border-l-2 border-primary/20 pl-4"
               ref={index === reasoningSteps.length - 1 ? lastStepRef : null}
             >
-              <h3 className="text-sm font-medium text-primary mb-2">
-                {step.title}
-              </h3>
+              {step.title && (
+                <h3 className="text-sm font-medium text-primary mb-2">
+                  {step.title}
+                </h3>
+              )}
               <ReactMarkdown
                 components={{
                   p: ({ node, children }) => (
