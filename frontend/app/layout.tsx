@@ -9,8 +9,8 @@ import { Suspense } from "react";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Tour Assistant",
-  description: "An AI tour assistant to plan your trip",
+  title: "AI Trip Planner",
+  description: "An AI trip assistant that plans your trip",
   icons: {
     icon: [
       { url: "/favicon/favicon-16x16.png", sizes: "16x16", type: "image/png" },

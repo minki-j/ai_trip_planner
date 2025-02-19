@@ -58,7 +58,6 @@ class FillScheduleResponse(BaseModel):
 
 
 def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
-    print("\n>>> NODE: calculate_how_many_schedules")
 
     free_hours: int = calculate_trip_free_hours(
         state.trip_arrival_date,
@@ -79,9 +78,8 @@ def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
 
 def add_fixed_schedules(state: OverallState, writer: StreamWriter):
     if not state.trip_fixed_schedules:
-        print("\n>>> SKIP: add_fixed_schedules (No fixed schedules provided)")
         return {}
-    print("\n>>> NODE: add_fixed_schedules")
+
     writer({"short": "Adding fixed schedules", "long": None})
 
     # check all fixed schedules are type of ScheduleItem
@@ -94,7 +92,6 @@ def add_fixed_schedules(state: OverallState, writer: StreamWriter):
 
 
 def add_terminal_schedules(state: OverallState, writer: StreamWriter):
-    print("\n>>> NODE: add_terminal_schedules")
     writer({"short": "Adding terminal schedules", "long": None})
 
     arrival_time = f"{state.trip_arrival_date} {state.trip_arrival_time}"
@@ -131,7 +128,6 @@ def add_terminal_schedules(state: OverallState, writer: StreamWriter):
 
 
 def fill_terminal_transportation_schedule(state: OverallState, writer: StreamWriter):
-    print("\n>>> NODE: fill_terminal_transportation_schedule")
     writer({"short": "Adding terminal <-> accommodation schedules", "long": None})
 
     prompt_for_perplexity = """
@@ -193,8 +189,13 @@ Using the information above, create two TRANSPORT type schedule items: one for a
     }
 
 
+class QueryWithRationale(BaseModel):
+    id: int = Field(default=None)
+    rationale: str
+    query: str
+
+
 async def init_generate_search_query_loop(state: OverallState, writer: StreamWriter):
-    print("\n>>> NODE: init_generate_search_query_loop")
     writer({"short": "Generating queries for internet search", "long": None})
 
     format_data = state.model_dump()
@@ -294,12 +295,6 @@ Important notes:
     }
 
 
-class QueryWithRationale(BaseModel):
-    id: int = Field(default=None)
-    rationale: str
-    query: str
-
-
 # For the loop of generating queries and validating them
 # We need an temporary state that stores the message list and the queries
 class GenerateSearchQueryLoopState(OverallState):  # Inherit from OverallState
@@ -311,7 +306,6 @@ class GenerateSearchQueryLoopState(OverallState):  # Inherit from OverallState
 def generate_search_query_loop(
     state: GenerateSearchQueryLoopState, writer: StreamWriter
 ):
-    print("\n>>> NODE: generate_search_query_loop")
     writer({"short": "Reviewing search queries for improvement (loop)", "long": None})
 
     class GenerateSearchQueryActionsType(str, Enum):
@@ -345,7 +339,9 @@ def generate_search_query_loop(
                 human_message,
             ]
         )
-        | chat_model_anthropic_first.with_structured_output(GenerateSearchQueryLoopResponse)
+        | chat_model_anthropic_first.with_structured_output(
+            GenerateSearchQueryLoopResponse
+        )
     ).invoke({})
 
     if (
@@ -359,6 +355,8 @@ def generate_search_query_loop(
                 "long": None,
             }
         )
+
+        # Call the internet_search node for each query in parallel
         return Command(
             goto=[
                 Send(
@@ -421,12 +419,11 @@ def generate_search_query_loop(
         )
 
 
-class InternetSearchState(InputState): # Inherit from InputState
+class InternetSearchState(InputState):  # Inherit from InputState
     query: str = Field(description="The query to search for.")
 
 
 def internet_search(state: InternetSearchState, writer: StreamWriter):
-    print("\n>>> NODE: internet_search")
 
     #! Excluded trip_theme, user_interests, and extra_info since they are distracting
     prompt = """
@@ -481,7 +478,6 @@ Important Rules
 
 
 def init_fill_schedule_loop(state: OverallState, writer: StreamWriter):
-    print("\n>>> NODE: init_fill_schedule_loop")
 
     format_data = state.model_dump()
     format_data["internet_search_results_string"] = "\n\n\n".join(
@@ -536,7 +532,7 @@ FILL_SCHEDULE_CRITERIA_LIST = [
 ]
 
 
-class FillScheduleLoopState(OverallState): # Inherit from OverallState
+class FillScheduleLoopState(OverallState):  # Inherit from OverallState
     fill_schedule_loop_messages: Annotated[list[AnyMessage], add_messages] = Field(
         default_factory=list
     )
@@ -547,13 +543,11 @@ def fill_schedule_loop(state: FillScheduleLoopState, writer: StreamWriter):
         state.schedule_list, state.trip_start_of_day_at, state.trip_end_of_day_at
     )
     if not empty_slots:
-        print("\n>>> Terminate: fill_schedule_loop")
         writer({"short": "Completed filling all schedule items", "long": None})
         return Command(
             goto=n(validate_full_schedule_loop),
         )
 
-    print("\n>>> NODE: fill_schedule_loop")
     writer({"short": "Filling schedule items (loop)", "long": None})
 
     messages = state.fill_schedule_loop_messages
@@ -637,7 +631,6 @@ Important Rules:
 
 
 def fill_schedule_reflection(state: FillScheduleLoopState, writer: StreamWriter):
-    print("\n>>> NODE: fill_schedule_reflection")
     writer({"short": "Reflecting on added schedule items", "long": None})
 
     criteria_instruction = (
@@ -722,7 +715,6 @@ Important!! This field is required. Don't forget to return an empty list if all 
 
 
 def validate_full_schedule_loop(state: OverallState, writer: StreamWriter):
-    print("\n>>> NODE: validate_full_schedule_loop")
     writer({"short": "Reviewing full schedule", "long": None})
 
     validate_filled_schedule_criteria_list = [
@@ -806,7 +798,7 @@ Here is the full schedule that you just filled:
     ).invoke(prompt)
 
     if len(response.actions) == 0:
-        print("\n>>> Terminate: validate_full_schedule_loop")
+        print("\n>>> Workflow completed!")
         return Command(
             goto=END,
         )

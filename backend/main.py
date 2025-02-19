@@ -48,7 +48,7 @@ async def get_current_user_http(request: Request) -> Optional[dict]:
     }
 
 
-app = FastAPI(title="Tour Assistant Backend")
+app = FastAPI(title="Trip Planner Backend")
 
 app.add_middleware(
     CORSMiddleware,

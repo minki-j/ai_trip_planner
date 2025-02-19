@@ -40,9 +40,9 @@ export function Navigation() {
         <div className="flex w-full items-center justify-between space-x-8">
           <div className="flex items-center space-x-6">
             <Link href="/" className="text-xl font-bold">
-              <span className="md:hidden text-md">TA</span>
+              <span className="md:hidden text-md">ATP</span>
               <span className="hidden md:inline text-base lg:text-lg">
-                Tour Assistant
+                AI Trip Planner
               </span>
             </Link>
             <div className="flex items-center space-x-3">

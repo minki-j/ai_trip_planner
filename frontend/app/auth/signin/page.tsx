@@ -31,7 +31,7 @@ export default function SignIn() {
           <h1 className="text-xl font-bold pb-3">
             Welcome to
             <br />
-            AI Tour Assistant
+            AI Trip Planner
           </h1>
           <p className="text-md text-muted-foreground">
             Start planning your trip

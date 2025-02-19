@@ -41,17 +41,17 @@ chat_model_openai_first = ChatOpenAI(
             model_name="gpt-4o",
             temperature=0.1,
             api_key=os.getenv("OPENAI_API_KEY"),
-        ),
+        ),  # lower the temperature
         ChatAnthropic(
             model="claude-3-5-sonnet-latest",
             api_key=os.getenv("ANTHROPIC_API_KEY"),
             temperature=0.1,
-        ),
+        ),  # try with claude
         ChatOpenAI(
             model_name="o3-mini",
             temperature=None,
             api_key=os.getenv("OPENAI_API_KEY"),
-        ),
+        ),  # try with o3-mini
     ]
 )
 
@@ -73,8 +73,6 @@ reasoning_model = ChatOpenAI(
 
 perplexity_chat_model = ChatPerplexity(
     model="sonar",
-    # model="sonar-reasoning",
-    # model="llama-3.1-sonar-small-128k-online",
     temperature=0.7,
     pplx_api_key=os.getenv("PPLX_API_KEY"),
 )  # no fallbacks are required since it doesn't have structured outputs
