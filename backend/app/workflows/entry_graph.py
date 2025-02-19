@@ -16,8 +16,6 @@ async def init_generate_schedule():
 asyncio.run(init_generate_schedule())
 
 def stage_router(state: OverallState):
-    print("\n>>> NODE: stage_router")
-
     if state.current_stage == Stage.END:
         return END
     elif state.current_stage == Stage.FIRST_GENERATION:

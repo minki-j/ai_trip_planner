@@ -48,7 +48,17 @@ async def get_current_user_http(request: Request) -> Optional[dict]:
     }
 
 
-app = FastAPI(title="Trip Planner Backend")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: reset Redis
+    await redis_client.flushall()
+    logger.critical("All Redis keys have been reset")
+    yield
+    # Shutdown: cleanup if needed
+
+app = FastAPI(title="Trip Planner Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -65,14 +75,15 @@ app.add_middleware(
 # Initialize Redis client
 redis_url = os.getenv("REDIS_URL")
 if not redis_url:
-    logger.warning("REDIS_URL not found in environment variables, using localhost")
+    logger.info("REDIS_URL not found in environment variables, using localhost")
     redis_url = "redis://localhost:6379"
 
 try:
     redis_client = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
-    logger.info(f"Connected to Redis at {redis_url}")
+    logger.critical(f"Connected to Redis at {redis_url}")
+
 except Exception as e:
-    logger.error(f"Failed to connect to Redis: {str(e)}")
+    logger.critical(f"Failed to connect to Redis: {str(e)}")
     raise
 
 # Key prefix for Redis

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
 import {
   ScheduleItem,
   ScheduleItemType,
@@ -55,6 +56,7 @@ export default function ScheduleDisplay({
   setIsEditMode,
   isGenerating,
 }: ScheduleDisplayProps) {
+  const { toast } = useToast();
   // Calculate earliest and latest dates from schedules
   const dateRange = schedules.reduce(
     (acc, activity) => {
@@ -207,11 +209,13 @@ export default function ScheduleDisplay({
                 const styling = getScheduleStyling(schedule.activity_type);
                 const Icon = styling.icon;
 
-                const isExpanded = expandedItems[schedule.id || index.toString()];
+                const isExpanded =
+                  expandedItems[schedule.id || index.toString()];
                 const toggleExpanded = () => {
-                  setExpandedItems(prev => ({
+                  setExpandedItems((prev) => ({
                     ...prev,
-                    [schedule.id || index.toString()]: !prev[schedule.id || index.toString()]
+                    [schedule.id || index.toString()]:
+                      !prev[schedule.id || index.toString()],
                   }));
                 };
 
@@ -307,7 +311,9 @@ export default function ScheduleDisplay({
                             transition={{ duration: 0.3 }}
                             className="flex items-center justify-center"
                           >
-                            <ChevronDown className={`h-5 w-full text-gray-200`} />
+                            <ChevronDown
+                              className={`h-5 w-full text-gray-200`}
+                            />
                           </motion.div>
                         </div>
                       </motion.div>
@@ -331,7 +337,13 @@ export default function ScheduleDisplay({
             {!isGenerating && (
               <div className="flex gap-4">
                 <Button
-                  onClick={() => setIsEditMode((prev) => !prev)}
+                  // onClick={() => setIsEditMode((prev) => !prev)}
+                  onClick={() =>
+                    toast({
+                      description: "Sorry, edit mode is not ready yet",
+                      variant: "destructive",
+                    })
+                  }
                   size="lg"
                   className="absolute bottom-3 left-3 rounded-full w-8 h-8 shadow-sm hover:bg-primary hover:text-primary-foreground hover:shadow-xl transition-shadow duration-200 flex items-center justify-center p-0 bg-white text-secondary-foreground border"
                   title="Toggle Edit Mode"

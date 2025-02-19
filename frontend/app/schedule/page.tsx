@@ -33,8 +33,8 @@ export default function SchedulePage() {
   const [reasoningStepShortMSG, setReasoningStepShortMSG] = useState<string[]>(
     []
   );
-  const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0);
-  const [delaySeconds, setDelaySeconds] = useState(-DELAY_TIME);
+  // const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0);
+  // const [delaySeconds, setDelaySeconds] = useState(-DELAY_TIME);
 
   const stepsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -276,7 +276,7 @@ export default function SchedulePage() {
     return <Loading />;
   }
 
-  if (connectionClosed) {
+  if (connectionClosed && (isGenerating || schedules.length === 0)) {
     return (
       <div className="w-full mt-[60px] max-w-xl py-5 px-8 flex flex-col gap-3 justify-center items-start">
         <h1 className="text-lg font-bold">Streaming is not available</h1>
@@ -291,10 +291,6 @@ export default function SchedulePage() {
             Please wait until the generation is complete. It may take up to 5
             minutes. Apologies for the inconvenience.
           </p>
-        </div>
-        <div className="mt-4 text-sm font-medium">
-          Time remaining: {Math.floor(timeLeft / 60)}:
-          {String(timeLeft % 60).padStart(2, "0")}
         </div>
       </div>
     );
