@@ -57,7 +57,7 @@ class FillScheduleResponse(BaseModel):
     actions: list[ScheduleAction]
 
 
-def calculate_how_many_schedules(state: OverallState, writer: StreamWriter):
+def calculate_trip_free_hours_node(state: OverallState, writer: StreamWriter):
 
     free_hours: int = calculate_trip_free_hours(
         state.trip_arrival_date,
@@ -830,12 +830,12 @@ Here is the full schedule that you just filled:
 
 
 g = StateGraph(OverallState)
-g.add_edge(START, n(calculate_how_many_schedules))
+g.add_edge(START, n(calculate_trip_free_hours_node))
 g.add_edge(START, n(add_fixed_schedules))
 g.add_edge(START, n(add_terminal_schedules))
 
-g.add_node(calculate_how_many_schedules)
-g.add_edge(n(calculate_how_many_schedules), "rendevous")
+g.add_node(calculate_trip_free_hours_node)
+g.add_edge(n(calculate_trip_free_hours_node), "rendevous")
 
 g.add_node(add_terminal_schedules)
 g.add_edge(n(add_terminal_schedules), "rendevous")
