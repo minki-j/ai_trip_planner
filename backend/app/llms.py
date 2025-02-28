@@ -32,7 +32,7 @@ chat_model_anthropic_first = ChatAnthropic(
 )
 
 chat_model_openai_first = ChatOpenAI(
-    model_name="o3-mini",
+    model_name="gpt-4o",
     api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0.5,
 ).with_fallbacks(
