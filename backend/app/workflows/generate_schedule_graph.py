@@ -31,14 +31,17 @@ from app.llms import (
     chat_model_openai_first,
     perplexity_chat_model,
     reasoning_model,
-    small_model_for_summarization,
+    small_model_anthropic_first,
 )
 from app.utils.utils import (
     convert_schedule_items_to_string,
     calculate_empty_slots,
     calculate_trip_free_hours,
+    determine_model
 )
 
+from notdiamond import init_NotDiamond_client
+nd_client = init_NotDiamond_client(router_only=True)
 
 FREE_HOURS_PER_QUERY = 6
 MAX_INTERNET_SEARCH = 10
@@ -455,7 +458,7 @@ Important Rules
 
     response = (perplexity_chat_model | StrOutputParser()).invoke(prompt)
 
-    summarized_response = small_model_for_summarization.invoke(
+    summarized_response = small_model_anthropic_first.invoke(
         f"Summarize the following internet search result in a single paragraph. If there are list of tourist attractions, places of interest, or landmarks, include all of them in the summary. Here is the result:\n{response}"
     )
 

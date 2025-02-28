@@ -55,15 +55,15 @@ chat_model_openai_first = ChatOpenAI(
     ]
 )
 
-
 reasoning_model = ChatOpenAI(
-    model_name="o3-mini",
+    model_name="o1-preview-2024-09-12",
     temperature=None,
     api_key=os.getenv("OPENAI_API_KEY"),
 ).with_fallbacks(
     [
         ChatOpenAI(
-            model_name="o3-mini",
+            model_name="o1-preview-2024-09-12",
+            # model_name="o3-mini",
             temperature=None,
             api_key=os.getenv("OPENAI_API_KEY"),
         ),  # try one more time
@@ -78,7 +78,7 @@ perplexity_chat_model = ChatPerplexity(
 )  # no fallbacks are required since it doesn't have structured outputs
 
 
-small_model_for_summarization = ChatAnthropic(
+small_model_anthropic_first = ChatAnthropic(
     model_name="claude-3-5-haiku-latest",
     temperature=0.7,
     api_key=os.getenv("ANTHROPIC_API_KEY"),
@@ -94,5 +94,24 @@ small_model_for_summarization = ChatAnthropic(
             temperature=0.1,
             api_key=os.getenv("OPENAI_API_KEY"),
         ),  # try with gpt-4o mini
+    ]
+)
+
+small_model_openai_first = ChatOpenAI(
+    model_name="gpt-4o-mini",
+    temperature=None,
+    api_key=os.getenv("OPENAI_API_KEY"),
+).with_fallbacks(
+    [
+        ChatOpenAI(
+            model_name="gpt-4o-mini",
+            temperature=0.1,
+            api_key=os.getenv("OPENAI_API_KEY"),
+        ),  
+        ChatAnthropic(
+            model="claude-3-5-haiku-latest",
+            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            temperature=0.1,  
+        ),
     ]
 )
