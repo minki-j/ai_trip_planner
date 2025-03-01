@@ -175,12 +175,13 @@ Using the information above, create two TRANSPORT type schedule items: one for a
         **state.model_dump()
     ).strip()
 
-    response: FillScheduleResponse = (
+    perplexity_response: str = (
         perplexity_chat_model
         | StrOutputParser()
-        | RunnableLambda(lambda x: x + "\n\n---\n\n" + prompt_for_chat_model)
-        | chat_model_anthropic_first.with_structured_output(FillScheduleResponse)
     ).invoke(prompt_for_perplexity)
+
+    model = determine_model(nd_client, [HumanMessage(content=perplexity_response + "\n\n---\n\n" + prompt_for_chat_model)])
+    response: FillScheduleResponse = model.with_structured_output(FillScheduleResponse).invoke(perplexity_response + "\n\n---\n\n" + prompt_for_chat_model)
 
     # Adjust ids considering existing schedule items
     starting_id = len(state.schedule_list) + 1
@@ -266,9 +267,11 @@ Important notes:
     class Queries(BaseModel):
         queries: list[QueryWithRationale]
 
+    model = determine_model(nd_client, [system_prompt, human_message])
+
     response: Queries = (
         ChatPromptTemplate.from_messages([system_prompt, human_message])
-        | chat_model_anthropic_first.with_structured_output(Queries)
+        | model.with_structured_output(Queries)
     ).invoke({})
 
     writer(
@@ -335,6 +338,11 @@ def generate_search_query_loop(
         "Review the queries for quality. Ensure they are diverse and not redundant. If any queries are redundant, keep only the best one. Add new queries relevant to my trip if any key aspects are missing. Modify queries that are too vague to make them more specific to my trip. For queries that meet the criteria, mark them with 'SKIP' as the action type. If all queries are good enough, return True for is_current_queries_good_enough."
     )
 
+    model = determine_model(nd_client, [
+                *state.generate_search_query_loop_messages,
+                human_message,
+            ])
+
     response: GenerateSearchQueryLoopResponse = (
         ChatPromptTemplate.from_messages(
             [
@@ -342,7 +350,7 @@ def generate_search_query_loop(
                 human_message,
             ]
         )
-        | chat_model_anthropic_first.with_structured_output(
+        | model.with_structured_output(
             GenerateSearchQueryLoopResponse
         )
     ).invoke({})
@@ -458,7 +466,9 @@ Important Rules
 
     response = (perplexity_chat_model | StrOutputParser()).invoke(prompt)
 
-    summarized_response = small_model_anthropic_first.invoke(
+    model = determine_model(nd_client, [HumanMessage(f"Summarize the following internet search result in a single paragraph. If there are list of tourist attractions, places of interest, or landmarks, include all of them in the summary. Here is the result:\n{response}")])
+
+    summarized_response = model.invoke(
         f"Summarize the following internet search result in a single paragraph. If there are list of tourist attractions, places of interest, or landmarks, include all of them in the summary. Here is the result:\n{response}"
     )
 
@@ -579,9 +589,11 @@ Important Rules:
 
     messages.append(human_message)
 
+    model = determine_model(nd_client, messages)
+
     response: FillScheduleResponse = (
         ChatPromptTemplate.from_messages(messages)
-        | chat_model_anthropic_first.with_structured_output(FillScheduleResponse)
+        | model.with_structured_output(FillScheduleResponse)
     ).invoke({})
 
     # Note: This creates a new list but the items inside are references to the original objects
@@ -677,10 +689,12 @@ Important!! This field is required. Don't forget to return an empty list if all 
         ),
     ]  # did not include the system prompt
 
+    model = determine_model(nd_client, messages)
+
     # Using O3-mini
     response = (
         ChatPromptTemplate.from_messages(messages)
-        | reasoning_model.with_structured_output(FillScheduleReflectionResponse)
+        | model.with_structured_output(FillScheduleReflectionResponse)
     ).invoke({})
 
     if len(response.actions) > 0:
@@ -795,9 +809,11 @@ Here is the full schedule that you just filled:
         ),
     ).strip()
 
+    model = determine_model(nd_client, [HumanMessage(prompt)])
+
     # Using O3-mini
     response = (
-        reasoning_model.with_structured_output(ValidateScheduleResponse)
+        model.with_structured_output(ValidateScheduleResponse)
     ).invoke(prompt)
 
     if len(response.actions) == 0:

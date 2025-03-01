@@ -327,23 +327,23 @@ def determine_model(nd_client, messages: list[AnyMessage]) -> str:
     _, provider = nd_client.chat.completions.model_select(
         messages=messages_dict,
         model=[
-            "anthropic/claude-3-5-haiku-20241022",
-            "openai/gpt-4o",
-            "anthropic/claude-3-5-sonnet-latest",
-            "openai/o1-preview",
             "openai/gpt-4o-mini",
+            "openai/gpt-4o",
+            "anthropic/claude-3-5-haiku-20241022",
+            "anthropic/claude-3-5-sonnet-latest",
             "openai/o1-preview-2024-09-12"
         ],
+        tradeoff="latency"
     )
 
     if provider == LLMConfig.from_string("openai/gpt-4o-mini"):
         return small_model_openai_first
     elif provider == LLMConfig.from_string("openai/gpt-4o"):
         return chat_model_openai_first
-    elif provider == LLMConfig.from_string("anthropic/claude-3-5-sonnet-latest"):
-        return chat_model_anthropic_first
     elif provider == LLMConfig.from_string("anthropic/claude-3-5-haiku-20241022"):
         return small_model_anthropic_first
+    elif provider == LLMConfig.from_string("anthropic/claude-3-5-sonnet-latest"):
+        return chat_model_anthropic_first
     elif provider == LLMConfig.from_string("openai/o1-preview-2024-09-12"):
         return reasoning_model
     else:
