@@ -56,14 +56,13 @@ chat_model_openai_first = ChatOpenAI(
 )
 
 reasoning_model = ChatOpenAI(
-    model_name="o1-preview-2024-09-12",
+    model_name="o3-mini",
     temperature=None,
     api_key=os.getenv("OPENAI_API_KEY"),
 ).with_fallbacks(
     [
         ChatOpenAI(
-            model_name="o1-preview-2024-09-12",
-            # model_name="o3-mini",
+            model_name="o3-mini",
             temperature=None,
             api_key=os.getenv("OPENAI_API_KEY"),
         ),  # try one more time
