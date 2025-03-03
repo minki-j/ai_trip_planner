@@ -37,11 +37,7 @@ from app.utils.utils import (
     convert_schedule_items_to_string,
     calculate_empty_slots,
     calculate_trip_free_hours,
-    determine_model
 )
-
-from notdiamond import init_NotDiamond_client
-nd_client = init_NotDiamond_client(router_only=True)
 
 FREE_HOURS_PER_QUERY = 6
 MAX_INTERNET_SEARCH = 10
