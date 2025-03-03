@@ -9,7 +9,6 @@ from app.llms import (
     small_model_openai_first,
     small_model_anthropic_first,
 )
-from notdiamond import LLMConfig
 
 def convert_messages_to_string(messages: AnyMessage) -> str:
     return (
@@ -308,45 +307,45 @@ def calculate_trip_free_hours(
 
     return round(total_free_hours, 2)
 
+# from notdiamond import LLMConfig
 
-def determine_model(nd_client, messages: list[AnyMessage]) -> str:
+# def determine_model(nd_client, messages: list[AnyMessage]) -> str:
 
-    messages_dict = [] 
+#     messages_dict = [] 
     
-    for msg in messages:
-        if isinstance(msg, SystemMessage):
-            messages_dict.append({"role": "system", "content": msg.content})
-        elif isinstance(msg, HumanMessage):
-            messages_dict.append({"role": "user", "content": msg.content})
-        elif isinstance(msg, AIMessage):
-            messages_dict.append({"role": "assistant", "content": msg.content})
-        else:
-            print("Unknown message type:", type(msg))
-            pass
+#     for msg in messages:
+#         if isinstance(msg, SystemMessage):
+#             messages_dict.append({"role": "system", "content": msg.content})
+#         elif isinstance(msg, HumanMessage):
+#             messages_dict.append({"role": "user", "content": msg.content})
+#         elif isinstance(msg, AIMessage):
+#             messages_dict.append({"role": "assistant", "content": msg.content})
+#         else:
+#             print("Unknown message type:", type(msg))
+#             pass
 
-    _, provider = nd_client.chat.completions.model_select(
-        messages=messages_dict,
-        model=[
-            "anthropic/claude-3-5-haiku-20241022",
-            "openai/gpt-4o",
-            "anthropic/claude-3-5-sonnet-latest",
-            "openai/o1-preview",
-            "openai/gpt-4o-mini",
-            "openai/o1-preview-2024-09-12"
-        ],
-    )
+#     _, provider = nd_client.chat.completions.model_select(
+#         messages=messages_dict,
+#         model=[
+#             "anthropic/claude-3-5-haiku-20241022",
+#             "openai/gpt-4o",
+#             "anthropic/claude-3-5-sonnet-latest",
+#             "openai/o1-preview",
+#             "openai/gpt-4o-mini",
+#             "openai/o1-preview-2024-09-12"
+#         ],
+#     )
 
-    if provider == LLMConfig.from_string("openai/gpt-4o-mini"):
-        return small_model_openai_first
-    elif provider == LLMConfig.from_string("openai/gpt-4o"):
-        return chat_model_openai_first
-    elif provider == LLMConfig.from_string("anthropic/claude-3-5-sonnet-latest"):
-        return chat_model_anthropic_first
-    elif provider == LLMConfig.from_string("anthropic/claude-3-5-haiku-20241022"):
-        return small_model_anthropic_first
-    elif provider == LLMConfig.from_string("openai/o1-preview-2024-09-12"):
-        return reasoning_model
-    else:
-        print("Unknown provider:", provider)
-        return chat_model_anthropic_first
-        
+#     if provider == LLMConfig.from_string("openai/gpt-4o-mini"):
+#         return small_model_openai_first
+#     elif provider == LLMConfig.from_string("openai/gpt-4o"):
+#         return chat_model_openai_first
+#     elif provider == LLMConfig.from_string("anthropic/claude-3-5-sonnet-latest"):
+#         return chat_model_anthropic_first
+#     elif provider == LLMConfig.from_string("anthropic/claude-3-5-haiku-20241022"):
+#         return small_model_anthropic_first
+#     elif provider == LLMConfig.from_string("openai/o1-preview-2024-09-12"):
+#         return reasoning_model
+#     else:
+#         print("Unknown provider:", provider)
+#         return chat_model_anthropic_first
