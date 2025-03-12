@@ -9,7 +9,7 @@ async def compile_graph_with_async_checkpointer(graph, graph_name):
 
     graph = graph.compile(checkpointer=checkpointer)
 
-    with open(f"./app/workflows/diagrams/{graph_name}.png", "wb") as f:
-        f.write(graph.get_graph(xray=0).draw_mermaid_png())
+    # with open(f"./app/workflows/diagrams/{graph_name}.png", "wb") as f:
+    #     f.write(graph.get_graph(xray=0).draw_mermaid_png())
 
     return graph
